@@ -1,0 +1,5 @@
+python-version/
+main.py
+pyproject.toml
+.python-version
+uv.lock
