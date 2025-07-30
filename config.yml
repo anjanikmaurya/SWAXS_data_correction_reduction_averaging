@@ -1,0 +1,43 @@
+
+# Output after doing corrections
+output_format: null
+
+# Empty list indicates no extra functions to add. 
+# TODO: implement extra functions if any are specified
+extra_functions: []
+poni_directory: "/poni/"
+data_directory: "/Hor_scan_Run4_RampT20_ctr0/"
+output_directory: "/output/"
+compound: "C2H4"
+
+# PONI calibration files
+poni_files:
+  saxs: "SAXS.poni"
+  waxs: "WAXS.poni"
+
+# Detector mask files  
+mask_files:
+  saxs: "RT_SAXS_mask.edf"
+  waxs: "RT_WAXS_mask.edf"
+
+# Detector dimensions (pixels)
+detector_shapes:
+  saxs: [1043, 981]
+  waxs: [195, 487]
+
+# 1D Integration parameters
+integration:
+  npt_radial: 1000  # Number of radial bins
+  error_model: "poisson"  # Error propagation model
+
+# Experimental parameters (from Step1 notebook)
+experimental:
+  energy_keV: 12
+  density_g_cm3: 0.92
+  i0_offset: 0.285816667
+  bstop_offset: 0.477621111
+  i0_air: 21.279793333333334
+  bstop_air: 18.650270000000003
+
+# If thickness is null, compute it manually. Else, use thickness value
+thickness: null
