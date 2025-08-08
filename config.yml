@@ -1,16 +1,7 @@
-
-# Output after doing corrections
-output_format: null
-
-# Empty list indicates no extra functions to add. 
-# TODO: implement extra functions if any are specified
-extra_functions: []
 poni_directory: "/poni/"
 data_directory: "/Hor_scan_Run4_RampT20_ctr0/"
 output_directory: "/output/"
-compound: "C2H4"
 
-# PONI calibration files
 poni_files:
   saxs: "SAXS.poni"
   waxs: "WAXS.poni"
@@ -25,6 +16,7 @@ detector_shapes:
   saxs: [1043, 981]
   waxs: [195, 487]
 
+compound: "C2H4"
 # 1D Integration parameters
 integration:
   npt_radial: 1000  # Number of radial bins
@@ -41,3 +33,8 @@ experimental:
 
 # If thickness is null, compute it manually. Else, use thickness value
 thickness: null
+# TODO: Output after doing corrections
+output_format: null
+# TODO: implement extra functions if any are specified
+# Empty list indicates no extra functions to add. 
+extra_functions: []
