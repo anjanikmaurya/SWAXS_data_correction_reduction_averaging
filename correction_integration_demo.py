@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
 """
-SWAXS Data Correction and 1D Integration Demo
-==============================================
-Simplified version of Step1 notebook focusing on core data correction and 1D integration.
-Processes individual .raw files without averaging or complex file searching logic.
-All parameters read from config.yml file.
+SWAXS Data Correction and 1D Integration Pipeline
+=================================================
+Refactored implementation of Step1 notebook with improved modularity and configuration management.
+Processes all .raw files in directory structure with essential data corrections and 1D integration.
+
+**Status: ACTIVE DEVELOPMENT** - Core functionality implemented, requires validation
 
 Key Features:
-- Experiment class for configuration management
-- Individual file processing (SAXS and WAXS)
-- Essential data corrections (dark current, transmission, normalization)
+- Experiment class for centralized configuration management from config.yml
+- Multi-file processing (all .raw files in SAXS/WAXS subdirectories)
+- Essential data corrections (transmission, normalization, material properties)
 - 1D radial integration with PyFAI
-- Output in same format as existing .dat files
+- Configurable experimental parameters and detector geometry
+- Output in .dat format compatible with existing analysis workflows
+
+File Structure Requirements:
+- Input: {data_directory}/[experiment_dirs]/SAXS/*.raw and WAXS/*.raw
+- Metadata: Corresponding .csv files with same name as .raw files
+- Output: 1D/[experiment_dirs]/*.dat (3-column: q, intensity, error)
+
+Dependencies: pyFAI, fabio, xraydb, numpy, pandas, yaml
 """
-import utils.py
 import os
 import glob
 import numpy as np
@@ -46,9 +54,7 @@ class Experiment:
         self.config_path = config_path
         self.config = self._load_config()
         self._setup_directories()
-        self._setup_detector_parameters()
         self._setup_experimental_parameters()
-        self._setup_integration_parameters()
         self._load_pyfai_integrators()
         
     def _load_config(self) -> Dict:
@@ -58,15 +64,12 @@ class Experiment:
     
     def _setup_directories(self):
         """Setup directory paths from config."""
-        self.poni_directory = self.config['poni_directory']
-        self.data_directory_2d = self.config['data_directory']  # Read from config
+        self.data_directory_2d = self.config['data_directory'] 
+        self.poni_directory = os.path.join(self.data_directory_2d, self.config['poni_directory'])
         self.output_directory_1d = "1D"
         
         self.saxs_subdir = "SAXS" 
         self.waxs_subdir = "WAXS"
-        
-    def _setup_detector_parameters(self):
-        """Setup detector-specific parameters from config."""
         self.detector_shapes = self.config['detector_shapes']
         self.poni_files = self.config['poni_files']
         self.mask_files = self.config['mask_files']
@@ -81,9 +84,6 @@ class Experiment:
         self.i0_air = self.config['i0_air']
         self.bstop_air = self.config['bstop_air']
         self.thickness = self.config.get('thickness', None)
-        
-    def _setup_integration_parameters(self):
-        """Setup 1D integration parameters from config."""
         self.npt_radial = self.config['npt_radial']
         self.error_model = self.config['error_model']
     
@@ -322,23 +322,21 @@ class Experiment:
               f"Trans_ratio: {corrections['transmission_ratio']:.4f}, "
               f"Normalization: {corrections['normalization_factor']:.3f}")
         
-        # Perform 1D radial integration
-        q, intensity, error = self.ai_saxs.integrate1d(
-            detector_data, 
-            self.npt_radial,
-            error_model=self.error_model,
-            mask=self.saxs_mask,
-            normalization_factor=corrections['normalization_factor']
-        )
-        
         # Create output directory and filename
         output_dir = self.create_output_directory(raw_file_path)
         output_filename = os.path.basename(raw_file_path).replace('.raw', '.dat')
         output_path = os.path.join(output_dir, output_filename)
         
-        # Save data in 3-column format (q, intensity, error)
-        data_array = np.column_stack([q, intensity, error])
-        np.savetxt(output_path, data_array, fmt='%.6e', delimiter='    ')
+        # Perform 1D radial integration with automatic file writing
+        # PyFAI will automatically generate headers with detector config and column names
+        q, intensity, error = self.ai_saxs.integrate1d(
+            detector_data, 
+            self.npt_radial,
+            error_model=self.error_model,
+            mask=self.saxs_mask,
+            normalization_factor=corrections['normalization_factor'],
+            filename=output_path
+        )
         
         print(f"  Saved to: {output_path}")
 
@@ -375,23 +373,21 @@ class Experiment:
               f"Trans_ratio: {corrections['transmission_ratio']:.4f}, "
               f"Normalization: {corrections['normalization_factor']:.3f}")
         
-        # Perform 1D radial integration
-        q, intensity, error = self.ai_waxs.integrate1d(
-            detector_data,
-            self.npt_radial,
-            error_model=self.error_model,
-            mask=self.waxs_mask,
-            normalization_factor=corrections['normalization_factor']
-        )
-        
         # Create output directory and filename
         output_dir = self.create_output_directory(raw_file_path)
         output_filename = os.path.basename(raw_file_path).replace('.raw', '.dat')
         output_path = os.path.join(output_dir, output_filename)
         
-        # Save data in 3-column format (q, intensity, error)
-        data_array = np.column_stack([q, intensity, error])
-        np.savetxt(output_path, data_array, fmt='%.6e', delimiter='    ')
+        # Perform 1D radial integration with automatic file writing
+        # PyFAI will automatically generate headers with detector config and column names
+        q, intensity, error = self.ai_waxs.integrate1d(
+            detector_data,
+            self.npt_radial,
+            error_model=self.error_model,
+            mask=self.waxs_mask,
+            normalization_factor=corrections['normalization_factor'],
+            filename=output_path
+        )
         
         print(f"  Saved to: {output_path}")
 
@@ -464,5 +460,3 @@ def main():
 
 if __name__ == "__main__":
     exit(main())
-    
-Experiment.
