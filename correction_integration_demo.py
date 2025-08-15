@@ -5,7 +5,7 @@ SWAXS Data Correction and 1D Integration Pipeline
 Refactored implementation of Step1 notebook with improved modularity and configuration management.
 Processes all .raw files in directory structure with essential data corrections and 1D integration.
 
-**Status: ACTIVE DEVELOPMENT** - Core functionality implemented with accurate SLD calculations, requires validation
+Status: ACTIVE DEVELOPMENT - Core functionality implemented with accurate calculations, requires extension
 
 Key Features:
 - Experiment class for centralized configuration management from config.yml
@@ -117,66 +117,6 @@ class Experiment:
         
         self.saxs_mask = fabio.open(saxs_mask_path).data
         self.waxs_mask = fabio.open(waxs_mask_path).data  
-    # def get_counters_from_pdi(self, pdi_file: str):
-    #     """Get counter names and values from PDI file
-    #     Args:
-    #         pdi_file (str): PDI file name with path
-    #     Returns:
-    #         dict: Dictionary containing counter names and values
-    #     """
-    #     print(f'pdi_file: {pdi_file}')
-    #     with open(pdi_file, 'r') as f:
-    #         data = f.read()
-    #     if 'All Counters' not in data: 
-    #         # Likely an empty file
-    #         raise RuntimeError("Empty PDI not supported yet")
-    #         return None
-    #     data = data.replace('\n', ';')
-        
-    #     counters_match = re.search('All Counters;(.*);;# All Motors', data)
-    #     assert counters_match is not None, f"Failed to parse PDI file {pdi_file}"
-    #     counters = counters_match.group(1)
-    #     cts = re.split(';|=', counters)
-    #     counters = {c.split()[0]: float(cs) for c, cs in zip(cts[::2], cts[1::2])}
-    #     return {
-    #         'i0': counters['i0'],
-    #         'bstop': counters['bstop'],
-    #         'ctemp': counters['CTEMP'],
-    #         'timer': counters['Timer']
-    #     }
-    
-    # def read_csv_parameters(self, csv_file_path: str) -> Dict[str, float]:
-    #     """
-    #     Read and extract parameters from CSV metadata files.
-        
-    #     Parameters
-    #     ----------
-    #     csv_file_path : str
-    #         Path to the CSV parameter file
-            
-    #     Returns
-    #     -------
-    #     Dict[str, float]
-    #         Dictionary containing averaged parameters
-    #     """
-    #     if not os.path.exists(csv_file_path):
-    #         raise FileNotFoundError(f"CSV file not found: {csv_file_path}")
-            
-    #     df = pd.read_csv(csv_file_path)
-        
-    #     # Extract columns as in Step1 notebook [2,3,6,10,29,30] 
-    #     # Column indices: i0=3, bstop=6, ctemp=29, timer=30 (0-indexed)
-    #     i0 = pd.to_numeric(df.iloc[:, 3], errors='coerce')
-    #     bstop = pd.to_numeric(df.iloc[:, 6], errors='coerce')
-    #     ctemp = pd.to_numeric(df.iloc[:, 29], errors='coerce')
-    #     timer = pd.to_numeric(df.iloc[:, 30], errors='coerce')
-        
-    #     return {
-    #         'i0': i0.mean(skipna=True),
-    #         'bstop': bstop.mean(skipna=True),
-    #         'ctemp': ctemp.mean(skipna=True),
-    #         'timer': timer.mean(skipna=True)
-    #     }
 
     def read_raw_detector_file(self, raw_file_path: str, detector_type: str) -> np.ndarray:
         """
@@ -243,48 +183,6 @@ class Experiment:
             "thickness_m": thickness
         }
 
-    def calculate_correction_factors(self, i0: float, bstop: float) -> Dict[str, float]:
-        """
-        Calculate transmission and normalization factors from raw parameters.
-        
-        Parameters
-        ----------
-        parameters : Dict[str, float]
-            Raw parameters from metadata file
-            
-        Returns
-        -------
-        Dict[str, float]
-            Dictionary containing correction factors
-        """
-        
-        # Calculate transmission factor - this is the raw beamstop value for SAXS
-        # Based on Step1 notebook: trans_factor = (bstop_avg_all[0]) for SAXS
-        transmission_factor_raw = bstop  # Raw bstop value
-        
-        # For thickness calculation, need transmission ratio
-        transmission_ratio = bstop / i0
-        
-        # Calculate material properties if thickness not provided
-        if self.thickness is None:
-            material_props = self.calculate_sld_mu_thickness(transmission_ratio)
-            thickness = material_props['thickness_m']
-        else:
-            thickness = self.thickness
-        
-        # Calculate normalization factor: trans_factor * i0_corrected
-        # Based on Step1 notebook: normfactor = trans_factor*i0_avg_all[0]
-        normalization_factor = transmission_factor_raw * i0
-        
-        return {
-            'i0_corrected': i0,
-            'bstop_corrected': bstop,
-            'transmission_factor': transmission_factor_raw,
-            'transmission_ratio': transmission_ratio,
-            'thickness': thickness,
-            'normalization_factor': normalization_factor
-        }
-
     def create_output_directory(self, raw_file_path: str, detector_type: str) -> str:
         """
         Create output directory structure with SAXS/Reduction or WAXS/Reduction subdirectories.
@@ -332,7 +230,8 @@ class Experiment:
             'transmission_factor': transmission_factor_raw,
             'transmission_ratio': transmission_ratio,
             'thickness': thickness,
-            'normalization_factor': normalization_factor
+            'normalization_factor': normalization_factor,
+            'metadata_path': csv_path
         }
         
     def process_saxs_file(self, raw_file_path: str):
@@ -480,3 +379,65 @@ def main():
 
 if __name__ == "__main__":
     exit(main())
+    
+# Previous functions for experiment class
+    # def get_counters_from_pdi(self, pdi_file: str):
+    #     """Get counter names and values from PDI file
+    #     Args:
+    #         pdi_file (str): PDI file name with path
+    #     Returns:
+    #         dict: Dictionary containing counter names and values
+    #     """
+    #     print(f'pdi_file: {pdi_file}')
+    #     with open(pdi_file, 'r') as f:
+    #         data = f.read()
+    #     if 'All Counters' not in data: 
+    #         # Likely an empty file
+    #         raise RuntimeError("Empty PDI not supported yet")
+    #         return None
+    #     data = data.replace('\n', ';')
+        
+    #     counters_match = re.search('All Counters;(.*);;# All Motors', data)
+    #     assert counters_match is not None, f"Failed to parse PDI file {pdi_file}"
+    #     counters = counters_match.group(1)
+    #     cts = re.split(';|=', counters)
+    #     counters = {c.split()[0]: float(cs) for c, cs in zip(cts[::2], cts[1::2])}
+    #     return {
+    #         'i0': counters['i0'],
+    #         'bstop': counters['bstop'],
+    #         'ctemp': counters['CTEMP'],
+    #         'timer': counters['Timer']
+    #     }
+    
+    # def read_csv_parameters(self, csv_file_path: str) -> Dict[str, float]:
+    #     """
+    #     Read and extract parameters from CSV metadata files.
+        
+    #     Parameters
+    #     ----------
+    #     csv_file_path : str
+    #         Path to the CSV parameter file
+            
+    #     Returns
+    #     -------
+    #     Dict[str, float]
+    #         Dictionary containing averaged parameters
+    #     """
+    #     if not os.path.exists(csv_file_path):
+    #         raise FileNotFoundError(f"CSV file not found: {csv_file_path}")
+            
+    #     df = pd.read_csv(csv_file_path)
+        
+    #     # Extract columns as in Step1 notebook [2,3,6,10,29,30] 
+    #     # Column indices: i0=3, bstop=6, ctemp=29, timer=30 (0-indexed)
+    #     i0 = pd.to_numeric(df.iloc[:, 3], errors='coerce')
+    #     bstop = pd.to_numeric(df.iloc[:, 6], errors='coerce')
+    #     ctemp = pd.to_numeric(df.iloc[:, 29], errors='coerce')
+    #     timer = pd.to_numeric(df.iloc[:, 30], errors='coerce')
+        
+    #     return {
+    #         'i0': i0.mean(skipna=True),
+    #         'bstop': bstop.mean(skipna=True),
+    #         'ctemp': ctemp.mean(skipna=True),
+    #         'timer': timer.mean(skipna=True)
+    #     }

@@ -24,10 +24,10 @@ error_model: "poisson"  # Error propagation model
 # Experimental parameters (from Step1 notebook)
 energy_keV: 12
 density_g_cm3: 0.92
-i0_offset: 0.0  # Set to 0 like in Step1 notebook
-bstop_offset: 0.0  # Set to 0 like in Step1 notebook  
-i0_air: 0.0  # Set to 0 like in Step1 notebook
-bstop_air: 0.0  # Set to 0 like in Step1 notebook
+i0_offset: 0.0  
+bstop_offset: 0.0 
+i0_air: 0.0 
+bstop_air: 0.0
 
 # If thickness is null, compute it manually. Else, use thickness value
 thickness: null
