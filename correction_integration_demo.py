@@ -5,15 +5,17 @@ SWAXS Data Correction and 1D Integration Pipeline
 Refactored implementation of Step1 notebook with improved modularity and configuration management.
 Processes all .raw files in directory structure with essential data corrections and 1D integration.
 
-**Status: ACTIVE DEVELOPMENT** - Core functionality implemented, requires validation
+**Status: ACTIVE DEVELOPMENT** - Core functionality implemented with accurate SLD calculations, requires validation
 
 Key Features:
 - Experiment class for centralized configuration management from config.yml
 - Multi-file processing (all .raw files in SAXS/WAXS subdirectories)
 - Essential data corrections (transmission, normalization, material properties)
+- Accurate SLD calculation using periodictable for precise material properties
 - 1D radial integration with PyFAI
 - Configurable experimental parameters and detector geometry
 - Output in .dat format compatible with existing analysis workflows
+- Uses PDI files instead of CSV
 
 File Structure Requirements:
 - Input: {data_directory}/[experiment_dirs]/SAXS/*.raw and WAXS/*.raw
@@ -29,9 +31,11 @@ import pandas as pd
 import yaml
 import fabio
 import pyFAI
-# import periodictable as pt  # Not needed for simplified demo
+import periodictable as pt
 import xraydb
 from typing import Dict, List, Tuple
+import re
+import utils
 
 
 class Experiment:
@@ -54,7 +58,7 @@ class Experiment:
         self.config_path = config_path
         self.config = self._load_config()
         self._setup_directories()
-        self._setup_experimental_parameters()
+        self._setup_parameters()
         self._load_pyfai_integrators()
         
     def _load_config(self) -> Dict:
@@ -64,9 +68,10 @@ class Experiment:
     
     def _setup_directories(self):
         """Setup directory paths from config."""
-        self.data_directory_2d = self.config['data_directory'] 
-        self.poni_directory = os.path.join(self.data_directory_2d, self.config['poni_directory'])
-        self.output_directory_1d = "1D"
+        self.data_directory_2d = os.path.join(self.config['data_directory'], "2D")
+        self.poni_directory = os.path.join(self.config['data_directory'], self.config['poni_directory'])
+        self.output_directory_1d = os.path.join(self.config['data_directory'], "1D")
+        os.makedirs(self.output_directory_1d, exist_ok = True)
         
         self.saxs_subdir = "SAXS" 
         self.waxs_subdir = "WAXS"
@@ -74,7 +79,7 @@ class Experiment:
         self.poni_files = self.config['poni_files']
         self.mask_files = self.config['mask_files']
         
-    def _setup_experimental_parameters(self):
+    def _setup_parameters(self):
         """Setup experimental parameters from config."""
         self.compound = self.config['compound']
         self.energy_keV = self.config['energy_keV']
@@ -86,6 +91,8 @@ class Experiment:
         self.thickness = self.config.get('thickness', None)
         self.npt_radial = self.config['npt_radial']
         self.error_model = self.config['error_model']
+        
+        self.metadata_function = self.config['read_metadata_function']
     
     def _load_pyfai_integrators(self):
         """Load PyFAI integrator objects for SAXS and WAXS."""
@@ -108,50 +115,68 @@ class Experiment:
         saxs_mask_path = os.path.join(self.poni_directory, self.mask_files['saxs'])
         waxs_mask_path = os.path.join(self.poni_directory, self.mask_files['waxs'])
         
-        if os.path.exists(saxs_mask_path):
-            self.saxs_mask = fabio.open(saxs_mask_path).data
-        else:
-            self.saxs_mask = None
-            print(f"Warning: SAXS mask file not found: {saxs_mask_path}")
-            
-        if os.path.exists(waxs_mask_path):
-            self.waxs_mask = fabio.open(waxs_mask_path).data  
-        else:
-            self.waxs_mask = None
-            print(f"Warning: WAXS mask file not found: {waxs_mask_path}")
-
-    def read_csv_parameters(self, csv_file_path: str) -> Dict[str, float]:
-        """
-        Read and extract parameters from CSV metadata files.
+        self.saxs_mask = fabio.open(saxs_mask_path).data
+        self.waxs_mask = fabio.open(waxs_mask_path).data  
+    # def get_counters_from_pdi(self, pdi_file: str):
+    #     """Get counter names and values from PDI file
+    #     Args:
+    #         pdi_file (str): PDI file name with path
+    #     Returns:
+    #         dict: Dictionary containing counter names and values
+    #     """
+    #     print(f'pdi_file: {pdi_file}')
+    #     with open(pdi_file, 'r') as f:
+    #         data = f.read()
+    #     if 'All Counters' not in data: 
+    #         # Likely an empty file
+    #         raise RuntimeError("Empty PDI not supported yet")
+    #         return None
+    #     data = data.replace('\n', ';')
         
-        Parameters
-        ----------
-        csv_file_path : str
-            Path to the CSV parameter file
-            
-        Returns
-        -------
-        Dict[str, float]
-            Dictionary containing averaged parameters
-        """
-        if not os.path.exists(csv_file_path):
-            raise FileNotFoundError(f"CSV file not found: {csv_file_path}")
-            
-        df = pd.read_csv(csv_file_path)
+    #     counters_match = re.search('All Counters;(.*);;# All Motors', data)
+    #     assert counters_match is not None, f"Failed to parse PDI file {pdi_file}"
+    #     counters = counters_match.group(1)
+    #     cts = re.split(';|=', counters)
+    #     counters = {c.split()[0]: float(cs) for c, cs in zip(cts[::2], cts[1::2])}
+    #     return {
+    #         'i0': counters['i0'],
+    #         'bstop': counters['bstop'],
+    #         'ctemp': counters['CTEMP'],
+    #         'timer': counters['Timer']
+    #     }
+    
+    # def read_csv_parameters(self, csv_file_path: str) -> Dict[str, float]:
+    #     """
+    #     Read and extract parameters from CSV metadata files.
         
-        # Extract columns as in Step1 notebook [2,3,6,10,29,30] 
-        # Column indices: i0=3, bstop=6, ctemp=29, timer=30 (0-indexed)
-        i0 = pd.to_numeric(df.iloc[:, 3], errors='coerce')
-        bstop = pd.to_numeric(df.iloc[:, 6], errors='coerce')
-        ctemp = pd.to_numeric(df.iloc[:, 29], errors='coerce')
-        timer = pd.to_numeric(df.iloc[:, 30], errors='coerce')
+    #     Parameters
+    #     ----------
+    #     csv_file_path : str
+    #         Path to the CSV parameter file
+            
+    #     Returns
+    #     -------
+    #     Dict[str, float]
+    #         Dictionary containing averaged parameters
+    #     """
+    #     if not os.path.exists(csv_file_path):
+    #         raise FileNotFoundError(f"CSV file not found: {csv_file_path}")
+            
+    #     df = pd.read_csv(csv_file_path)
         
-        return {
-            'i0_avg': i0.mean(skipna=True),
-            'bstop_avg': bstop.mean(skipna=True),
-            'ctemp_avg': ctemp.mean(skipna=True),
-            'timer_avg': timer.mean(skipna=True)
-        }
+    #     # Extract columns as in Step1 notebook [2,3,6,10,29,30] 
+    #     # Column indices: i0=3, bstop=6, ctemp=29, timer=30 (0-indexed)
+    #     i0 = pd.to_numeric(df.iloc[:, 3], errors='coerce')
+    #     bstop = pd.to_numeric(df.iloc[:, 6], errors='coerce')
+    #     ctemp = pd.to_numeric(df.iloc[:, 29], errors='coerce')
+    #     timer = pd.to_numeric(df.iloc[:, 30], errors='coerce')
+        
+    #     return {
+    #         'i0': i0.mean(skipna=True),
+    #         'bstop': bstop.mean(skipna=True),
+    #         'ctemp': ctemp.mean(skipna=True),
+    #         'timer': timer.mean(skipna=True)
+    #     }
 
     def read_raw_detector_file(self, raw_file_path: str, detector_type: str) -> np.ndarray:
         """
@@ -179,7 +204,6 @@ class Experiment:
         if not os.path.exists(raw_file_path):
             raise FileNotFoundError(f"Raw detector file not found: {raw_file_path}")
         
-        # Read raw binary file as int32 and reshape
         data = np.fromfile(raw_file_path, dtype=np.int32).reshape(shape)
         return data
 
@@ -205,8 +229,10 @@ class Experiment:
                                      energy=self.energy_keV * 1000, 
                                      density=self.density_g_cm3) * 100  # Convert to 1/m
         
-        # Note: SLD calculation using periodictable - for simplified demo we'll use a default value
-        sld = 2.0e-6  # Default SLD value for polymer materials
+        # Calculate scattering length density (SLD) using periodictable
+        material = pt.formula(self.compound)
+        sld, mu_pt = pt.xray_sld(material, energy=self.energy_keV, density=self.density_g_cm3)
+
         
         # Calculate thickness: T = exp(-mu * t) → t = -ln(T) / mu
         thickness = -np.log(transmission) / mu_xraydb
@@ -217,31 +243,27 @@ class Experiment:
             "thickness_m": thickness
         }
 
-    def calculate_correction_factors(self, parameters: Dict[str, float]) -> Dict[str, float]:
+    def calculate_correction_factors(self, i0: float, bstop: float) -> Dict[str, float]:
         """
         Calculate transmission and normalization factors from raw parameters.
-        IMPORTANT: Based on Step1 notebook analysis, offsets are set to 0!
         
         Parameters
         ----------
         parameters : Dict[str, float]
-            Raw parameters from CSV file
+            Raw parameters from metadata file
             
         Returns
         -------
         Dict[str, float]
             Dictionary containing correction factors
         """
-        # CRITICAL FIX: Step1 notebook uses offset=0, so NO dark current correction
-        i0_corrected = parameters['i0_avg']  # - 0  (no offset applied)
-        bstop_corrected = parameters['bstop_avg']  # - 0  (no offset applied)
         
         # Calculate transmission factor - this is the raw beamstop value for SAXS
         # Based on Step1 notebook: trans_factor = (bstop_avg_all[0]) for SAXS
-        transmission_factor_raw = bstop_corrected  # Raw bstop value
+        transmission_factor_raw = bstop  # Raw bstop value
         
         # For thickness calculation, need transmission ratio
-        transmission_ratio = bstop_corrected / i0_corrected
+        transmission_ratio = bstop / i0
         
         # Calculate material properties if thickness not provided
         if self.thickness is None:
@@ -252,43 +274,67 @@ class Experiment:
         
         # Calculate normalization factor: trans_factor * i0_corrected
         # Based on Step1 notebook: normfactor = trans_factor*i0_avg_all[0]
-        normalization_factor = transmission_factor_raw * i0_corrected
+        normalization_factor = transmission_factor_raw * i0
         
         return {
-            'i0_corrected': i0_corrected,
-            'bstop_corrected': bstop_corrected,
+            'i0_corrected': i0,
+            'bstop_corrected': bstop,
             'transmission_factor': transmission_factor_raw,
             'transmission_ratio': transmission_ratio,
             'thickness': thickness,
             'normalization_factor': normalization_factor
         }
 
-    def create_output_directory(self, raw_file_path: str) -> str:
+    def create_output_directory(self, raw_file_path: str, detector_type: str) -> str:
         """
-        Create output directory structure matching input file location.
+        Create output directory structure with SAXS/Reduction or WAXS/Reduction subdirectories.
         
         Parameters
         ----------
         raw_file_path : str
             Path to the raw file being processed
+        detector_type : str
+            Type of detector ('SAXS' or 'WAXS')
             
         Returns
         -------
         str
             Output directory path
         """
-        # Extract directory structure relative to 2D/
-        rel_path = os.path.relpath(raw_file_path, self.data_directory_2d)
-        dir_parts = os.path.dirname(rel_path).split(os.sep)
-        
-        # Remove SAXS/WAXS subdirectory from path
-        if len(dir_parts) > 0 and dir_parts[-1] in ['SAXS', 'WAXS']:
-            dir_parts = dir_parts[:-1]
-            
-        output_dir = os.path.join(self.output_directory_1d, *dir_parts)
+        # Create flat structure: run5_test/1D/SAXS/Reduction or run5_test/1D/WAXS/Reduction
+        output_dir = os.path.join(self.output_directory_1d, detector_type.upper(), "Reduction")
         os.makedirs(output_dir, exist_ok=True)
         return output_dir
-
+    
+    def get_corrections_full(self, raw_file_path: str):
+        """Processed metadata file and computes correction factors"""
+        metadata_function = getattr(utils, self.metadata_function)
+        i0, bstop, csv_path = metadata_function(raw_file_path)
+        
+        # Calculate correction factors
+        transmission_factor_raw = bstop
+        transmission_ratio = bstop / i0
+        
+        # Calculate material properties if thickness not provided
+        if self.thickness is None:
+            material_props = self.calculate_sld_mu_thickness(transmission_ratio)
+            thickness = material_props['thickness_m']
+        else:
+            thickness = self.thickness
+        
+        # Calculate normalization factor: trans_factor * i0_corrected
+        # Based on Step1 notebook: normfactor = trans_factor*i0_avg_all[0]
+        normalization_factor = transmission_factor_raw * i0
+        
+        return {
+            'i0_corrected': i0,
+            'bstop_corrected': bstop,
+            'transmission_factor': transmission_factor_raw,
+            'transmission_ratio': transmission_ratio,
+            'thickness': thickness,
+            'normalization_factor': normalization_factor
+        }
+        
     def process_saxs_file(self, raw_file_path: str):
         """
         Process a single SAXS .raw file with corrections and 1D integration.
@@ -303,18 +349,11 @@ class Experiment:
         # Read raw detector data
         detector_data = self.read_raw_detector_file(raw_file_path, 'SAXS')
         
-        # Find corresponding CSV file (same directory, same name, .csv extension)
-        csv_file_path = raw_file_path.replace('.raw', '.csv')
+        # csv_file_path = raw_file_path.replace(".raw", ".csv")
+        # assert os.path.exists(csv_file_path), "Metadata file not found: {csv_file_path}"
+        # parameters = self.read_csv_parameters(csv_file_path)
         
-        if not os.path.exists(csv_file_path):
-            print(f"Warning: CSV file not found for {raw_file_path}, skipping")
-            return
-        
-        # Read parameters from CSV
-        parameters = self.read_csv_parameters(csv_file_path)
-        
-        # Calculate correction factors
-        corrections = self.calculate_correction_factors(parameters)
+        corrections = self.get_corrections_full(raw_file_path)
         
         print(f"  I0: {corrections['i0_corrected']:.3f}, "
               f"Bstop: {corrections['bstop_corrected']:.3f}, "
@@ -323,7 +362,7 @@ class Experiment:
               f"Normalization: {corrections['normalization_factor']:.3f}")
         
         # Create output directory and filename
-        output_dir = self.create_output_directory(raw_file_path)
+        output_dir = self.create_output_directory(raw_file_path, 'SAXS')
         output_filename = os.path.basename(raw_file_path).replace('.raw', '.dat')
         output_path = os.path.join(output_dir, output_filename)
         
@@ -351,30 +390,11 @@ class Experiment:
         """
         print(f"Processing WAXS file: {raw_file_path}")
         
-        # Read raw detector data
         detector_data = self.read_raw_detector_file(raw_file_path, 'WAXS')
-        
-        # Find corresponding CSV file (same directory, same name, .csv extension)
-        csv_file_path = raw_file_path.replace('.raw', '.csv')
-        
-        if not os.path.exists(csv_file_path):
-            print(f"Warning: CSV file not found for {raw_file_path}, skipping")
-            return
-        
-        # Read parameters from CSV
-        parameters = self.read_csv_parameters(csv_file_path)
-        
-        # Calculate correction factors
-        corrections = self.calculate_correction_factors(parameters)
-        
-        print(f"  I0: {corrections['i0_corrected']:.3f}, "
-              f"Bstop: {corrections['bstop_corrected']:.3f}, "
-              f"Trans_factor: {corrections['transmission_factor']:.3f}, "
-              f"Trans_ratio: {corrections['transmission_ratio']:.4f}, "
-              f"Normalization: {corrections['normalization_factor']:.3f}")
-        
+        corrections = self.get_corrections_full(raw_file_path)
+
         # Create output directory and filename
-        output_dir = self.create_output_directory(raw_file_path)
+        output_dir = self.create_output_directory(raw_file_path, 'WAXS')
         output_filename = os.path.basename(raw_file_path).replace('.raw', '.dat')
         output_path = os.path.join(output_dir, output_filename)
         

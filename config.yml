@@ -1,6 +1,5 @@
 # Detector mask files: allow for absolute paths  
-data_directory: "run5_test"
-
+data_directory: "/Users/vsomani/Documents/SWAXS_data_reduction_correction_Analysis/run5_test"
 poni_directory: "poni/"
 
 poni_files:
@@ -8,19 +7,15 @@ poni_files:
   waxs: "atT_WAXS.poni"
 
 mask_files:
-  saxs: "RT_SAXS_mask.edf"
+  saxs: "RT_SAXS_mask_03.edf"
   waxs: "RT_WAXS_mask.edf"
-
 # Detector dimensions (pixels) -- list
 detector_shapes:
   saxs: [1043, 981]
   waxs: [195, 487]
 
 compound: "C2H4"
-file_format: ".raw"
-
-
-read_data_function: null
+correction_function: null
 
 # 1D Integration parameters
 npt_radial: 1000  # Number of radial bins
@@ -37,6 +32,14 @@ bstop_air: 0.0  # Set to 0 like in Step1 notebook
 # If thickness is null, compute it manually. Else, use thickness value
 thickness: null
 
+# TODO: implement data reading function if any are specified in utils.py
+# Specify function name.
+# IMPORTANT: Specified functions must be in utils.py and must follow input and output in exactly the same way as noted below
+
+# INPUT: Raw data file path, output: dataframe of processed raw data in int32 and reshaped
+# TODO: implement this
+read_data_function: null
+# INPUT: raw data file path. Output: Tuple (i0, bstop, csv_dir)
+read_metadata_function: process_csv_metadata
 # TODO: implement extra functions if any are specified
-# Empty list indicates no extra functions to add. 
-extra_functions: []
+extra_corrections: []

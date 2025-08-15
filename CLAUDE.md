@@ -9,36 +9,40 @@ This codebase processes Small and Wide Angle X-ray Scattering (SAXS/WAXS) data f
 ```
 SWAXS_data_reduction_correction_Analysis/
 ├── Step1_SWAXS_Reduction_Normlisation_combined_macv4.ipynb  # Original notebook (legacy)
-├── refactored_demo.py                                      # Refactored data processing pipeline
+├── correction_integration_demo.py                          # NEW: Refactored data processing pipeline
 ├── config.yml                                              # Configuration file for refactored pipeline
 ├── Step2_SWAXS_bkg_subtract_01.ipynb                       # Background subtraction
 ├── Step3_SAXS_fit_porod_sub_v4.ipynb                       # SAXS analysis & fitting
 ├── Step3_WAXS_AmorphCal_and_Fitting_v3.ipynb              # WAXS crystallinity analysis
-├── atT/                                                     # Experimental data directories
-├── main.py                                                  # Main execution script
+├── atT/                                                     # Experimental data directories (legacy format)
+├── atT_smaller/                                             # Smaller experimental dataset 
+├── run5_test/                                               # Test dataset for refactored implementation
+├── python-version/                                          # Alternative Python implementation
 └── pyproject.toml                                          # Project dependencies
 ```
 
 ## Data Correction Pipeline
 
-### Refactored Pipeline (`refactored_demo.py`)
+### Refactored Pipeline (`correction_integration_demo.py`)
 
-**Status: NEW - Requires Testing**
+**Status: ACTIVE DEVELOPMENT - Core functionality implemented**
 
-A significant refactoring of the original Step1 notebook has been implemented in `refactored_demo.py`. This modular approach provides the same data corrections with improved code organization and configuration management.
+A significant refactoring of the original Step1 notebook has been implemented in `correction_integration_demo.py`. This modular approach provides the same data corrections with improved code organization and configuration management through an Experiment class.
 
-**Key Functions:**
-- `process_swaxs_data()` (line 318-438): Main processing workflow using config file
-- `process_transmission_correction()` (line 236-315): Complete transmission & thickness correction
-- `calculate_sld_mu_thickness()` (line 144-173): Material properties calculation
-- `read_raw_detector_file()` (line 61-91): Raw detector file reading
-- `read_csv_parameters()` (line 26-58): CSV parameter extraction
+**Key Components:**
+- `Experiment` class (line 28-121): Configuration management and core functionality
+- `Experiment.process_saxs_file()` (line 291-342): SAXS file processing with corrections and 1D integration
+- `Experiment.process_waxs_file()` (line 344-395): WAXS file processing with corrections and 1D integration
+- `calculate_correction_factors()` (line 219-263): Transmission and normalization factor calculation
+- `read_raw_detector_file()` (line 155-183): Raw detector file reading
+- `read_csv_parameters()` (line 122-153): CSV parameter extraction
 
-**Important Limitations:**
-- **Single File Processing Only**: Processes only the first SAXS and WAXS raw file found
-- **No Averaging**: Does not implement multi-file averaging like the original notebook
-- **Requires Testing**: New implementation needs validation against original results
-- **Config Dependency**: Requires `config.yml` file for all experimental parameters
+**Key Improvements over Legacy:**
+- **Multi-File Processing**: Processes all .raw files in directory structure
+- **Experiment Class**: Centralized configuration management from `config.yml`
+- **Modular Design**: Individual file processing methods for SAXS and WAXS
+- **Error Handling**: Better validation and error messages
+- **Flexible Output**: Maintains directory structure in output
 
 ### Legacy Pipeline (`Step1_SWAXS_Reduction_Normlisation_combined_macv4.ipynb`)
 
@@ -97,48 +101,17 @@ A significant refactoring of the original Step1 notebook has been implemented in
    ```
    - **Refactored**: Integration parameters configurable (npt_radial, error_model)
 
-### Step 2: Background Subtraction (`Step2_SWAXS_bkg_subtract_01.ipynb`)
-
-**Key Functions:**
-- `SAXS_bkg_subtract()` (line 50-150): Performs SAXS background correction
-- `WAXS_bkg_subtract()` (line 50-150): Performs WAXS background correction
-
-**Background Correction Algorithm:**
-
-1. **Alpha Parameter Calculation**
-   - SAXS: Uses q-range 1.6-1.8 nm⁻¹ for scaling
-   - WAXS: Uses q-range 24-25 nm⁻¹ for scaling
-   ```python
-   alpha_ratio = mean(I_sample_q_range) / mean(I_background_q_range)
-   alpha = alpha_ratio - alpha_offset
-   ```
-
-2. **Three-Step Subtraction Process**
-   ```python
-   # Step 1: Empty cell subtraction
-   I_sample_empty = I_sample - I_empty
-   I_bkg_empty = I_background - I_empty
-   
-   # Step 2: Scaled background subtraction  
-   I_corrected = I_sample_empty - alpha * I_bkg_empty
-   ```
-
-3. **Error Propagation**
-   ```python
-   sigma_corrected = sqrt(sigma_sample² + alpha² * sigma_background²)
-   ```
-
 ## Refactored Implementation Details
 
 ### Configuration Management System (`config.yml`)
 
-The refactored implementation introduces a YAML-based configuration system that addresses the hardcoded parameter issues:
+The refactored implementation introduces a YAML-based configuration system managed by the Experiment class that addresses hardcoded parameter issues:
 
 ```yaml
 # Example config.yml structure
-data_directory: "atT"  # Relative to base directory
-poni_directory: "atT"  # Directory containing PONI and mask files
-compound: "C2H4"       # Material formula
+data_directory: "run5_test/2D"  # Path to 2D data directory
+poni_directory: "run5_test"     # Directory containing PONI and mask files  
+compound: "C2H4"                # Material formula
 
 detector_shapes:
   saxs: [1043, 981]
@@ -152,17 +125,38 @@ mask_files:
   saxs: "RT_SAXS_mask_03.edf"
   waxs: "RT_WAXS_mask.edf"
 
-experimental:
-  i0_offset: 0.285816667
-  bstop_offset: 0.477621111
-  i0_air: 21.279793333
-  bstop_air: 18.65027
-  energy_keV: 12
-  density_g_cm3: 0.92
+# Simplified experimental parameters (offsets set to 0 based on Step1 analysis)
+energy_keV: 12
+density_g_cm3: 0.92
+i0_offset: 0
+bstop_offset: 0
+i0_air: 21.279793333
+bstop_air: 18.65027
+thickness: null  # Calculated from transmission if not provided
 
-integration:
-  npt_radial: 1000
-  error_model: "poisson"
+# Integration parameters
+npt_radial: 1000
+error_model: "poisson"
+```
+
+### File Structure Requirements
+
+The refactored implementation expects a specific directory structure:
+
+```
+data_directory/
+├── [experiment_dir]/
+│   ├── SAXS/
+│   │   ├── *.raw  # Raw detector files
+│   │   └── *.csv  # Metadata files (same name as .raw)
+│   └── WAXS/
+│       ├── *.raw  # Raw detector files  
+│       └── *.csv  # Metadata files (same name as .raw)
+└── ...
+
+Output: 1D/[experiment_dir]/
+├── *.dat  # Processed SAXS/WAXS files (3-column: q, intensity, error)
+└── ...
 ```
 
 ### Testing Requirements
@@ -188,13 +182,14 @@ The refactored implementation requires comprehensive validation:
 
 ### Remaining Refactoring Requirements
 
-### 1. **Multi-File Processing & Averaging**
+### 1. **Multi-File Averaging**
 **Priority: High - Currently Missing**
 
-The refactored implementation currently lacks:
+The refactored implementation processes individual files but lacks:
 - Multi-file averaging capabilities from original notebook
-- Time-series processing for multiple exposures
+- Time-series processing for multiple exposures  
 - Statistical analysis of multiple measurements
+- Error propagation in averaging calculations
 
 ### 2. **Flexible File Structure Support**
 **Priority: Medium**
@@ -229,10 +224,10 @@ Future enhancements needed:
 
 3. **Processing Workflows:**
 
-   **Refactored Pipeline (Single File):**
+   **Refactored Pipeline (Multi-File Processing):**
    ```bash
    # Ensure config.yml is properly configured
-   python refactored_demo.py
+   python correction_integration_demo.py
    
    # Then proceed with background subtraction and analysis
    jupyter notebook Step2_SWAXS_bkg_subtract_*.ipynb
@@ -255,13 +250,13 @@ Future enhancements needed:
 
 **⚠️ CRITICAL WARNINGS:**
 
-1. **Validation Required**: The refactored implementation (`refactored_demo.py`) is **UNTESTED** and must be validated against known good results from the original notebook before production use.
+1. **Validation Required**: The refactored implementation (`correction_integration_demo.py`) is **UNDER ACTIVE DEVELOPMENT** and must be validated against known good results from the original notebook before production use.
 
-2. **Limited Functionality**: Currently processes only **single files** - does not implement the multi-file averaging that is essential for many experimental workflows.
+2. **Configuration Dependency**: Requires a properly configured `config.yml` file with correct file paths and experimental parameters. Missing or incorrect configuration will cause processing failures.
 
-3. **Configuration Dependency**: Requires a properly configured `config.yml` file. Missing or incorrect configuration will cause processing failures.
+3. **Different Data Structure**: The refactored implementation expects data in `2D/SAXS/` and `2D/WAXS/` subdirectories with CSV metadata files, different from the legacy `atT/` structure.
 
-4. **Breaking Changes**: The refactored API is not compatible with existing analysis workflows that depend on the original notebook's data structures.
+4. **Correction Factor Changes**: Based on Step1 notebook analysis, dark current offsets have been set to 0, which differs from earlier assumptions.
 
 **Recommended Testing Protocol:**
 1. Run both implementations on identical test data

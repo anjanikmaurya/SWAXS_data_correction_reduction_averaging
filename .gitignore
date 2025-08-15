@@ -1,5 +1,4 @@
 python-version/
-main.py
 pyproject.toml
 .python-version
 uv.lock
@@ -9,3 +8,5 @@ Hor_scan_Run4_RampT20_ctr0/
 atT_smaller/
 .DS_Store
 __pycache__
+run12_test
+run5_test/
