@@ -24,6 +24,8 @@ File Structure Requirements:
 
 Dependencies: pyFAI, fabio, xraydb, numpy, pandas, yaml
 """
+# TODO: Split up into different files 
+# TODO: Logging
 import os
 import glob
 import numpy as np
@@ -36,7 +38,7 @@ import xraydb
 from typing import Dict, List, Tuple
 import re
 import utils
-
+from pathlib import Path
 
 class Experiment:
     """
@@ -199,15 +201,81 @@ class Experiment:
         str
             Output directory path
         """
-        # Create flat structure: run5_test/1D/SAXS/Reduction or run5_test/1D/WAXS/Reduction
         output_dir = os.path.join(self.output_directory_1d, detector_type.upper(), "Reduction")
         os.makedirs(output_dir, exist_ok=True)
         return output_dir
     
-    def get_corrections_full(self, raw_file_path: str):
+    def get_saxs_pdi_from_waxs(self, pdi_path) -> str:
+        """Gets SAXS PDI from WAXS PDI. Also would work in vice-versa, but not used"""
+        corresponding_pdi_regex = r"(Run\d{1,3}.*scan\d_\d\d\d\d)"
+        match = re.search(corresponding_pdi_regex, pdi_path)
+        
+        if match is None: 
+            raise RuntimeError()
+        shared_expression = match.group(1) 
+        # Convert to pathlib to change directories
+        search_directory = Path(pdi_path).parent.parent / "SAXS"
+        for pdi_file in search_directory.glob("*.csv"):
+            if shared_expression in pdi_file.name:
+                return str(pdi_file)
+        # No file found
+        raise FileNotFoundError(f"""Empty WAXS File: {shared_expression} and no 
+                        corresponding SAXS found in directory {search_directory}""")
+        
+
+    def process_pdi_full(self, raw_file_path: str, detector_type: str):
+        pdi_file_path = raw_file_path + ".pdi"
+        if not Path(pdi_file_path).exists():
+            raise FileNotFoundError(f"PDI file not found: {pdi_file_path}") 
+        with open(pdi_file_path, 'r') as f:
+            data = f.read()
+    
+        if (detector_type.upper() != "SAXS") and (detector_type.upper() != "WAXS"):
+            raise RuntimeError("Detector Type must be either SAXS or WAXS")
+        if ('All Counters' not in data) and (detector_type.upper() == "WAXS"):
+            pdi_file_path = self.get_saxs_pdi_from_waxs(pdi_file_path)
+        counters, motors, extras = self.get_meta_from_pdi(pdi_file_path)
+        if counters is None:
+            raise RuntimeError(f"Error Parsing PDI File: {pdi_file_path} -- counters not found")
+        return counters['i0'], counters['bstop'], pdi_file_path
+          
+    def get_meta_from_pdi(self, pdi_file: str):
+        """Get motor and counter names and values from PDI file
+        Function returns empty dictionary for counters if it cannot process successfully
+        """
+        with open(pdi_file, 'r') as f:
+            data = f.read()
+        data = data.replace('\n', ';')
+        try:
+            counters = re.search('All Counters;(.*);;# All Motors', data).group(1)
+            cts = re.split(';|=', counters)
+            Counters = {c.split()[0]: float(cs) for c, cs in zip(cts[::2], cts[1::2])}
+            motors = re.search('All Motors;(.*);#', data).group(1)
+            cts = re.split(';|=', motors)
+            Motors = {c.split()[0]: float(cs) for c, cs in zip(cts[::2], cts[1::2])}
+        except AttributeError:
+            ss1 = '# Diffractometer Motor Positions for image;# '
+            ss2 = ';# Calculated Detector Calibration Parameters for image:'
+            motors = re.search(f'{ss1}(.*){ss2}', data).group(1)
+            cts = re.split(';|=', motors)
+            Motors = {c.split()[0]: float(cs) for c, cs in zip(cts[::2], cts[1::2])}
+            Motors['TwoTheta'] = Motors['2Theta']
+            Counters = {}
+        Extras = {}
+        if len(data[data.rindex(';') + 1:]) > 0:
+            Extras['epoch'] = data[data.rindex(';') + 1:]
+        return Counters, Motors, Extras
+
+
+    def get_corrections_full(self, raw_file_path: str, detector_type: str):
         """Processed metadata file and computes correction factors"""
-        metadata_function = getattr(utils, self.metadata_function)
-        i0, bstop, csv_path = metadata_function(raw_file_path)
+        # Use specified metadata function from utils if available, otherwise use PDI processing
+        if self.metadata_function is not None and hasattr(utils, self.metadata_function):
+            metadata_function = getattr(utils, self.metadata_function)
+            i0, bstop, csv_path = metadata_function(raw_file_path, detector_type)
+        else:
+            # Using current PDI metadata processing
+            i0, bstop, csv_path = self.process_pdi_full(raw_file_path, detector_type)
         
         # Calculate correction factors
         transmission_factor_raw = bstop
@@ -252,7 +320,7 @@ class Experiment:
         # assert os.path.exists(csv_file_path), "Metadata file not found: {csv_file_path}"
         # parameters = self.read_csv_parameters(csv_file_path)
         
-        corrections = self.get_corrections_full(raw_file_path)
+        corrections = self.get_corrections_full(raw_file_path, "SAXS")
         
         print(f"  I0: {corrections['i0_corrected']:.3f}, "
               f"Bstop: {corrections['bstop_corrected']:.3f}, "
@@ -277,7 +345,7 @@ class Experiment:
         )
         
         print(f"  Saved to: {output_path}")
-
+         
     def process_waxs_file(self, raw_file_path: str):
         """
         Process a single WAXS .raw file with corrections and 1D integration.
@@ -290,7 +358,7 @@ class Experiment:
         print(f"Processing WAXS file: {raw_file_path}")
         
         detector_data = self.read_raw_detector_file(raw_file_path, 'WAXS')
-        corrections = self.get_corrections_full(raw_file_path)
+        corrections = self.get_corrections_full(raw_file_path, "WAXS")
 
         # Create output directory and filename
         output_dir = self.create_output_directory(raw_file_path, 'WAXS')
@@ -312,6 +380,7 @@ class Experiment:
 
 
 def find_all_raw_files(data_directory_path: str) -> Tuple[List[str], List[str]]:
+    
     """
     Find all .raw files in SAXS and WAXS directories.
     
@@ -376,68 +445,5 @@ def main():
     
     return 0
 
-
 if __name__ == "__main__":
     exit(main())
-    
-# Previous functions for experiment class
-    # def get_counters_from_pdi(self, pdi_file: str):
-    #     """Get counter names and values from PDI file
-    #     Args:
-    #         pdi_file (str): PDI file name with path
-    #     Returns:
-    #         dict: Dictionary containing counter names and values
-    #     """
-    #     print(f'pdi_file: {pdi_file}')
-    #     with open(pdi_file, 'r') as f:
-    #         data = f.read()
-    #     if 'All Counters' not in data: 
-    #         # Likely an empty file
-    #         raise RuntimeError("Empty PDI not supported yet")
-    #         return None
-    #     data = data.replace('\n', ';')
-        
-    #     counters_match = re.search('All Counters;(.*);;# All Motors', data)
-    #     assert counters_match is not None, f"Failed to parse PDI file {pdi_file}"
-    #     counters = counters_match.group(1)
-    #     cts = re.split(';|=', counters)
-    #     counters = {c.split()[0]: float(cs) for c, cs in zip(cts[::2], cts[1::2])}
-    #     return {
-    #         'i0': counters['i0'],
-    #         'bstop': counters['bstop'],
-    #         'ctemp': counters['CTEMP'],
-    #         'timer': counters['Timer']
-    #     }
-    
-    # def read_csv_parameters(self, csv_file_path: str) -> Dict[str, float]:
-    #     """
-    #     Read and extract parameters from CSV metadata files.
-        
-    #     Parameters
-    #     ----------
-    #     csv_file_path : str
-    #         Path to the CSV parameter file
-            
-    #     Returns
-    #     -------
-    #     Dict[str, float]
-    #         Dictionary containing averaged parameters
-    #     """
-    #     if not os.path.exists(csv_file_path):
-    #         raise FileNotFoundError(f"CSV file not found: {csv_file_path}")
-            
-    #     df = pd.read_csv(csv_file_path)
-        
-    #     # Extract columns as in Step1 notebook [2,3,6,10,29,30] 
-    #     # Column indices: i0=3, bstop=6, ctemp=29, timer=30 (0-indexed)
-    #     i0 = pd.to_numeric(df.iloc[:, 3], errors='coerce')
-    #     bstop = pd.to_numeric(df.iloc[:, 6], errors='coerce')
-    #     ctemp = pd.to_numeric(df.iloc[:, 29], errors='coerce')
-    #     timer = pd.to_numeric(df.iloc[:, 30], errors='coerce')
-        
-    #     return {
-    #         'i0': i0.mean(skipna=True),
-    #         'bstop': bstop.mean(skipna=True),
-    #         'ctemp': ctemp.mean(skipna=True),
-    #         'timer': timer.mean(skipna=True)
-    #     }

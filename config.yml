@@ -1,6 +1,6 @@
 # Detector mask files: allow for absolute paths  
 data_directory: "/Users/vsomani/Documents/SWAXS_data_reduction_correction_Analysis/run5_test"
-poni_directory: "poni/"
+poni_directory: "poni"
 
 poni_files:
   saxs: "atT_SAXS.poni"
@@ -8,14 +8,13 @@ poni_files:
 
 mask_files:
   saxs: "RT_SAXS_mask_03.edf"
-  waxs: "RT_WAXS_mask.edf"
+  waxs: null
 # Detector dimensions (pixels) -- list
 detector_shapes:
   saxs: [1043, 981]
   waxs: [195, 487]
 
 compound: "C2H4"
-correction_function: null
 
 # 1D Integration parameters
 npt_radial: 1000  # Number of radial bins
@@ -29,6 +28,9 @@ bstop_offset: 0.0
 i0_air: 0.0 
 bstop_air: 0.0
 
+# TODO
+mode: "swaxs"
+
 # If thickness is null, compute it manually. Else, use thickness value
 thickness: null
 
@@ -40,6 +42,6 @@ thickness: null
 # TODO: implement this
 read_data_function: null
 # INPUT: raw data file path. Output: Tuple (i0, bstop, csv_dir)
-read_metadata_function: process_csv_metadata
+read_metadata_function: null
 # TODO: implement extra functions if any are specified
 extra_corrections: []
