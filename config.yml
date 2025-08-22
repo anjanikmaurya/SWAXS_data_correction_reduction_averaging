@@ -1,5 +1,5 @@
-# Detector mask files: allow for absolute paths  
-data_directory: "/Users/vsomani/Documents/SWAXS_data_reduction_correction_Analysis/run5_test"
+# Detector mask files: allow for absolute paths. 
+data_directory: "/Users/vsomani/Documents/SWAXS_data_reduction_correction_Analysis/new_test"
 poni_directory: "poni"
 
 poni_files:
@@ -8,7 +8,7 @@ poni_files:
 
 mask_files:
   saxs: "RT_SAXS_mask_03.edf"
-  waxs: null
+  waxs: "RT_WAXS_mask.edf"
 # Detector dimensions (pixels) -- list
 detector_shapes:
   saxs: [1043, 981]
@@ -28,8 +28,11 @@ bstop_offset: 0.0
 i0_air: 0.0 
 bstop_air: 0.0
 
-# TODO
-mode: "swaxs"
+# Options: 
+# SWAXS -- perform both SAXS and WAXS
+# SAXS -- SAXS only
+# WAXS -- WAXS only
+mode: "SWAXS"
 
 # If thickness is null, compute it manually. Else, use thickness value
 thickness: null

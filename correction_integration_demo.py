@@ -29,7 +29,6 @@ Dependencies: pyFAI, fabio, xraydb, numpy, pandas, yaml
 import os
 import glob
 import numpy as np
-import pandas as pd
 import yaml
 import fabio
 import pyFAI
@@ -39,8 +38,28 @@ from typing import Dict, List, Tuple
 import re
 import utils
 from pathlib import Path
+import logging
 
+logging.basicConfig(filename = "corrections.log", filemode = "w", level = logging.INFO)
 class Experiment:
+    # Type hints for dynamically assigned config attributes
+    data_directory: str
+    poni_directory: str
+    compound: str
+    energy_keV: float
+    density_g_cm3: float
+    detector_shapes: Dict[str, List[int]]
+    poni_files: Dict[str, str]
+    mask_files: Dict[str, str]
+    read_metadata_function: str
+    thickness: float
+    npt_radial: int
+    error_model: str
+    i0_offset: float
+    bstop_offset: float
+    i0_air: float
+    bstop_air: float
+    mode: str
     """
     SWAXS Experiment class for managing configuration and data processing.
     
@@ -58,43 +77,28 @@ class Experiment:
             Path to the configuration file
         """
         self.config_path = config_path
-        self.config = self._load_config()
+        self._load_and_assign_config()
         self._setup_directories()
-        self._setup_parameters()
         self._load_pyfai_integrators()
         
-    def _load_config(self) -> Dict:
-        """Load configuration from YAML file."""
+    def _load_and_assign_config(self):
+        """Load configuration from YAML file and assign all values to instance variables."""
         with open(self.config_path, 'r') as f:
-            return yaml.safe_load(f)
+            config = yaml.safe_load(f)
+        
+        # Loop through all config keys and assign them as instance variables
+        for key, value in config.items():
+            setattr(self, key, value)
     
     def _setup_directories(self):
-        """Setup directory paths from config."""
-        self.data_directory_2d = os.path.join(self.config['data_directory'], "2D")
-        self.poni_directory = os.path.join(self.config['data_directory'], self.config['poni_directory'])
-        self.output_directory_1d = os.path.join(self.config['data_directory'], "1D")
+        """Setup computed directory paths."""
+        self.data_directory_2d = os.path.join(self.data_directory, "2D")
+        self.poni_directory = os.path.join(self.data_directory, self.poni_directory)
+        self.output_directory_1d = os.path.join(self.data_directory, "1D")
         os.makedirs(self.output_directory_1d, exist_ok = True)
         
         self.saxs_subdir = "SAXS" 
         self.waxs_subdir = "WAXS"
-        self.detector_shapes = self.config['detector_shapes']
-        self.poni_files = self.config['poni_files']
-        self.mask_files = self.config['mask_files']
-        
-    def _setup_parameters(self):
-        """Setup experimental parameters from config."""
-        self.compound = self.config['compound']
-        self.energy_keV = self.config['energy_keV']
-        self.density_g_cm3 = self.config['density_g_cm3']
-        self.i0_offset = self.config['i0_offset']
-        self.bstop_offset = self.config['bstop_offset']
-        self.i0_air = self.config['i0_air']
-        self.bstop_air = self.config['bstop_air']
-        self.thickness = self.config.get('thickness', None)
-        self.npt_radial = self.config['npt_radial']
-        self.error_model = self.config['error_model']
-        
-        self.metadata_function = self.config['read_metadata_function']
     
     def _load_pyfai_integrators(self):
         """Load PyFAI integrator objects for SAXS and WAXS."""
@@ -113,12 +117,18 @@ class Experiment:
         self._load_detector_masks()
     
     def _load_detector_masks(self):
-        """Load detector mask files."""
-        saxs_mask_path = os.path.join(self.poni_directory, self.mask_files['saxs'])
-        waxs_mask_path = os.path.join(self.poni_directory, self.mask_files['waxs'])
-        
-        self.saxs_mask = fabio.open(saxs_mask_path).data
-        self.waxs_mask = fabio.open(waxs_mask_path).data  
+        """Load detector mask files, allowing for null values in YML"""
+        if self.mask_files['saxs'] is not None:
+            saxs_mask_path = os.path.join(self.poni_directory, self.mask_files['saxs'])
+            self.saxs_mask = fabio.open(saxs_mask_path).data
+        else:
+            self.saxs_mask = None
+
+        if self.mask_files['waxs'] is not None:
+            waxs_mask_path = os.path.join(self.poni_directory, self.mask_files['waxs'])
+            self.waxs_mask = fabio.open(waxs_mask_path).data 
+        else:
+            self.waxs_mask = None
 
     def read_raw_detector_file(self, raw_file_path: str, detector_type: str) -> np.ndarray:
         """
@@ -270,8 +280,8 @@ class Experiment:
     def get_corrections_full(self, raw_file_path: str, detector_type: str):
         """Processed metadata file and computes correction factors"""
         # Use specified metadata function from utils if available, otherwise use PDI processing
-        if self.metadata_function is not None and hasattr(utils, self.metadata_function):
-            metadata_function = getattr(utils, self.metadata_function)
+        if self.read_metadata_function is not None and hasattr(utils, self.read_metadata_function):
+            metadata_function = getattr(utils, self.read_metadata_function)
             i0, bstop, csv_path = metadata_function(raw_file_path, detector_type)
         else:
             # Using current PDI metadata processing
@@ -379,7 +389,7 @@ class Experiment:
         print(f"  Saved to: {output_path}")
 
 
-def find_all_raw_files(data_directory_path: str) -> Tuple[List[str], List[str]]:
+def find_all_raw_files(experiment: Experiment, data_directory_path: str) -> Tuple[List[str], List[str]]:
     
     """
     Find all .raw files in SAXS and WAXS directories.
@@ -394,16 +404,22 @@ def find_all_raw_files(data_directory_path: str) -> Tuple[List[str], List[str]]:
     Tuple[List[str], List[str]]
         Lists of SAXS and WAXS .raw file paths
     """
-    # Find all SAXS .raw files
-    saxs_pattern = os.path.join(data_directory_path, "**/SAXS/**/*.raw")
-    saxs_files = [f for f in glob.glob(saxs_pattern, recursive=True) 
-                  if not f.endswith('.raw.pdi')]
+    if (experiment.mode.upper() != "WAXS"):
+        saxs_pattern = os.path.join(data_directory_path, "**/SAXS/**/*.raw")
+        saxs_files = [f for f in glob.glob(saxs_pattern, recursive=True) 
+                    if not f.endswith('.raw.pdi')]
+    else:
+        # Don't include SAXS files in just WAXS
+        saxs_files = []
     
-    # Find all WAXS .raw files  
-    waxs_pattern = os.path.join(data_directory_path, "**/WAXS/**/*.raw")
-    waxs_files = [f for f in glob.glob(waxs_pattern, recursive=True)
-                  if not f.endswith('.raw.pdi')]
-    
+    if (experiment.mode.upper() != "SAXS"):
+        waxs_pattern = os.path.join(data_directory_path, "**/WAXS/**/*.raw")
+        waxs_files = [f for f in glob.glob(waxs_pattern, recursive=True)
+                    if not f.endswith('.raw.pdi')]
+    else:
+        # Don't include WAXS files in just SAXS
+        waxs_files = []
+        
     return sorted(saxs_files), sorted(waxs_files)
 
 
@@ -421,7 +437,7 @@ def main():
     print()
     
     # Find all .raw files to process
-    saxs_files, waxs_files = find_all_raw_files(experiment.data_directory_2d)
+    saxs_files, waxs_files = find_all_raw_files(experiment, experiment.data_directory_2d)
     
     print(f"Found {len(saxs_files)} SAXS files and {len(waxs_files)} WAXS files to process")
     print()

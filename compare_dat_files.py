@@ -1,13 +1,13 @@
 import numpy as np
 
-def compare_dat_files(file1_path, file2_path, tolerance=1e-6):
+def compare_dat_files(file1_path, file2_path, tolerance=1e-7):
     """
     Compare two .dat files, ignoring comment lines (starting with #).
     
     Args:
         file1_path (str): Path to first .dat file
         file2_path (str): Path to second .dat file  
-        tolerance (float): Tolerance for numerical comparison (default 1e-6)
+        tolerance (float): Tolerance for numerical comparison
     
     Returns:
         bool: True if files match within tolerance, False otherwise
@@ -38,9 +38,14 @@ def compare_dat_files(file1_path, file2_path, tolerance=1e-6):
     print("Files match within tolerance")
     return True
 
-compare_dat_files('run5_test/1D/SAXS/Reduction/sone_Hor_scan_Run5_RampT20_ctr0_scan1_0000.dat', 
-                  'atT_smaller/OneD_integrated_SAXS_01/Reduction/Hor_all_SAXS.dat', tolerance= 1e-8)
-compare_dat_files('atT_smaller/OneD_1dd_WAXS_01/Reduction/Hor_all_WAXS.dat', 
-                  'run5_test/1D/WAXS/Reduction/b_tassone_Hor_scan_Run5_RampT20_ctr0_scan1_0000.dat', tolerance= 1e-8)
+# compare_dat_files('atT_smaller/OneD_integrated_SAXS_01/Reduction/Hor_all_SAXS.dat',
+#                   'run5_test/1D/SAXS/Reduction/sone_Hor_scan_Run5_RampT20_ctr0_scan1_0000.dat')
+# compare_dat_files('atT_smaller/OneD_1dd_WAXS_01/Reduction/Hor_all_WAXS.dat', 
+#                   'run5_test/1D/WAXS/Reduction/b_tassone_Hor_scan_Run5_RampT20_ctr0_scan1_0000.dat')
+
+compare_dat_files('new_test/1D/SAXS/Reduction/sone_Hor_scan_Run5_RampT20_ctr0_scan1_0000.dat',
+                  'run5_test/1D/SAXS/Reduction/sone_Hor_scan_Run5_RampT20_ctr0_scan1_0000.dat')
+compare_dat_files('new_test/1D/WAXS/Reduction/b_tassone_Hor_scan_Run5_RampT20_ctr0_scan1_0000.dat', 
+                  'run5_test/1D/WAXS/Reduction/b_tassone_Hor_scan_Run5_RampT20_ctr0_scan1_0000.dat')
 
 # What if the SAXS data comes in before the WAXS data
