@@ -5,7 +5,10 @@
 This codebase processes Small and Wide Angle X-ray Scattering (SAXS/WAXS) data from synchrotron experiments. The pipeline performs data reduction, normalization, and correction steps to convert raw detector images into scientifically meaningful scattering profiles.
 
 IMPORTANT: Don't test the code after running unless told otherwise
-IMPORTANT: to run python code with imports, use uv run
+IMPORTANT: to run python code with imports, use uv run to use the virtual env
+
+Also, you may find some diagnostic issues with the pt library on vscode, but these are not actual issues. You can ignore these.
+
 ## Project Structure
 
 ```

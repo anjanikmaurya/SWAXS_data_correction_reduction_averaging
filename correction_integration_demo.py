@@ -22,7 +22,9 @@ File Structure Requirements:
 - Metadata: Corresponding .csv files with same name as .raw files
 - Output: 1D/[experiment_dirs]/*.dat (3-column: q, intensity, error)
 
-Dependencies: pyFAI, fabio, xraydb, numpy, pandas, yaml
+Logging rules:
+1. Logs all config information just once — when Experiment._load_and_assign_config() is called
+2. Also performs logging for all corrections called on the very first run of SAXS and WAXS (if both are run).
 """
 # TODO: Split up into different files 
 # TODO: Logging
@@ -40,7 +42,12 @@ import utils
 from pathlib import Path
 import logging
 
-logging.basicConfig(filename = "corrections.log", filemode = "w", level = logging.INFO)
+# Start logger, overwrites existing logging files, includes timestamp in message
+logging.basicConfig(filename = "corrections.log",
+                    filemode = "w", 
+                    level = logging.INFO,
+                    format="%(asctime)s -  %(name)s - %(levelname)s - %(message)s",
+                    datefmt="%Y-%m-%d %H:%M:%S")
 class Experiment:
     # Type hints for dynamically assigned config attributes
     data_directory: str
@@ -77,6 +84,10 @@ class Experiment:
             Path to the configuration file
         """
         self.config_path = config_path
+        # Logging state tracking for first-run detailed logging
+        self._saxs_logged = False
+        self._waxs_logged = False
+        
         self._load_and_assign_config()
         self._setup_directories()
         self._load_pyfai_integrators()
@@ -86,9 +97,30 @@ class Experiment:
         with open(self.config_path, 'r') as f:
             config = yaml.safe_load(f)
         
+        # Log all configuration information once
+        logging.info("=" * 60)
+        logging.info("SWAXS EXPERIMENT CONFIGURATION")
+        logging.info("=" * 60)
+        logging.info(f"Configuration file: {self.config_path}")
+        logging.info("")
+        
         # Loop through all config keys and assign them as instance variables
         for key, value in config.items():
             setattr(self, key, value)
+            # Log each configuration parameter
+            if isinstance(value, dict):
+                logging.info(f"{key}:")
+                for sub_key, sub_value in value.items():
+                    logging.info(f"  {sub_key}: {sub_value}")
+            elif isinstance(value, list):
+                logging.info(f"{key}: {value}")
+            else:
+                logging.info(f"{key}: {value}")
+        
+        # Make mode upper-case (SAXS, SWAXS, WAXS) for case-insensitive string comparison
+        self.mode = self.mode.upper()
+        logging.info("")
+        logging.info("=" * 60)
     
     def _setup_directories(self):
         """Setup computed directory paths."""
@@ -100,35 +132,56 @@ class Experiment:
         self.saxs_subdir = "SAXS" 
         self.waxs_subdir = "WAXS"
     
-    def _load_pyfai_integrators(self):
-        """Load PyFAI integrator objects for SAXS and WAXS."""
+    def _load_saxs_integrator(self):
+        """Load PyFAI integrator and mask for SAXS detector."""
         self.saxs_poni_path = os.path.join(self.poni_directory, self.poni_files['saxs'])
-        self.waxs_poni_path = os.path.join(self.poni_directory, self.poni_files['waxs'])
         
         if not os.path.exists(self.saxs_poni_path):
             raise FileNotFoundError(f"SAXS PONI file not found: {self.saxs_poni_path}")
-        if not os.path.exists(self.waxs_poni_path):
-            raise FileNotFoundError(f"WAXS PONI file not found: {self.waxs_poni_path}")
             
         self.ai_saxs = pyFAI.load(self.saxs_poni_path)
-        self.ai_waxs = pyFAI.load(self.waxs_poni_path)
+        logging.info(f"Loaded SAXS PyFAI integrator from: {self.saxs_poni_path}")
         
-        # Load detector masks
-        self._load_detector_masks()
-    
-    def _load_detector_masks(self):
-        """Load detector mask files, allowing for null values in YML"""
+        # Load SAXS detector mask
         if self.mask_files['saxs'] is not None:
             saxs_mask_path = os.path.join(self.poni_directory, self.mask_files['saxs'])
             self.saxs_mask = fabio.open(saxs_mask_path).data
+            logging.info(f"Loaded SAXS mask from: {saxs_mask_path}")
         else:
             self.saxs_mask = None
-
+            logging.info("No SAXS mask file specified")
+    
+    def _load_waxs_integrator(self):
+        """Load PyFAI integrator and mask for WAXS detector."""
+        self.waxs_poni_path = os.path.join(self.poni_directory, self.poni_files['waxs'])
+        
+        if not os.path.exists(self.waxs_poni_path):
+            raise FileNotFoundError(f"WAXS PONI file not found: {self.waxs_poni_path}")
+            
+        self.ai_waxs = pyFAI.load(self.waxs_poni_path)
+        logging.info(f"Loaded WAXS PyFAI integrator from: {self.waxs_poni_path}")
+        
+        # Load WAXS detector mask
         if self.mask_files['waxs'] is not None:
             waxs_mask_path = os.path.join(self.poni_directory, self.mask_files['waxs'])
             self.waxs_mask = fabio.open(waxs_mask_path).data 
+            logging.info(f"Loaded WAXS mask from: {waxs_mask_path}")
         else:
             self.waxs_mask = None
+            logging.info("No WAXS mask file specified")
+
+    def _load_pyfai_integrators(self):
+        """Load PyFAI integrator objects based on processing mode."""
+        
+        if self.mode in ['SAXS', 'SWAXS']:
+            self._load_saxs_integrator()
+            
+        if self.mode in ['WAXS', 'SWAXS']:
+            self._load_waxs_integrator()
+            
+        if self.mode not in ['SAXS', 'WAXS', 'SWAXS']:
+            raise ValueError(f"Invalid mode '{self.mode}'. Must be 'SAXS', 'WAXS', or 'SWAXS'")
+    
 
     def read_raw_detector_file(self, raw_file_path: str, detector_type: str) -> np.ndarray:
         """
@@ -146,6 +199,11 @@ class Experiment:
         np.ndarray
             Detector image array with proper shape
         """
+        # Log function call for first runs only
+        if ((detector_type.upper() == 'SAXS' and not self._saxs_logged) or 
+            (detector_type.upper() == 'WAXS' and not self._waxs_logged)):
+            logging.info(f"Called read_raw_detector_file() for {detector_type} detector")
+        
         if detector_type.upper() == 'SAXS':
             shape = tuple(self.detector_shapes['saxs'])
         elif detector_type.upper() == 'WAXS':
@@ -157,6 +215,13 @@ class Experiment:
             raise FileNotFoundError(f"Raw detector file not found: {raw_file_path}")
         
         data = np.fromfile(raw_file_path, dtype=np.int32).reshape(shape)
+        
+        # Log data information for first runs only
+        if ((detector_type.upper() == 'SAXS' and not self._saxs_logged) or 
+            (detector_type.upper() == 'WAXS' and not self._waxs_logged)):
+            logging.info(f"  Raw data loaded: shape {data.shape}, dtype {data.dtype}")
+            logging.info(f"  Data range: min={data.min()}, max={data.max()}, mean={data.mean():.2f}")
+        
         return data
 
     def calculate_sld_mu_thickness(self, transmission: float) -> Dict[str, float]:
@@ -173,6 +238,8 @@ class Experiment:
         Dict[str, float]
             Dictionary containing mu, sld, and thickness_m
         """
+        logging.info(f"Called calculate_sld_mu_thickness() with transmission = {transmission:.6f}")
+        
         if transmission <= 0 or transmission > 1:
             raise ValueError("Transmission must be in the range (0, 1]")
         
@@ -221,11 +288,11 @@ class Experiment:
         match = re.search(corresponding_pdi_regex, pdi_path)
         
         if match is None: 
-            raise RuntimeError()
+            raise RuntimeError("")
         shared_expression = match.group(1) 
         # Convert to pathlib to change directories
         search_directory = Path(pdi_path).parent.parent / "SAXS"
-        for pdi_file in search_directory.glob("*.csv"):
+        for pdi_file in search_directory.glob("*.pdi"):
             if shared_expression in pdi_file.name:
                 return str(pdi_file)
         # No file found
@@ -243,6 +310,7 @@ class Experiment:
         if (detector_type.upper() != "SAXS") and (detector_type.upper() != "WAXS"):
             raise RuntimeError("Detector Type must be either SAXS or WAXS")
         if ('All Counters' not in data) and (detector_type.upper() == "WAXS"):
+            # Empty PDI file found in WAXS -- check SAXS to see if corresponding file exists
             pdi_file_path = self.get_saxs_pdi_from_waxs(pdi_file_path)
         counters, motors, extras = self.get_meta_from_pdi(pdi_file_path)
         if counters is None:
@@ -279,6 +347,11 @@ class Experiment:
 
     def get_corrections_full(self, raw_file_path: str, detector_type: str):
         """Processed metadata file and computes correction factors"""
+        # Log function call for first runs only
+        if ((detector_type.upper() == 'SAXS' and not self._saxs_logged) or 
+            (detector_type.upper() == 'WAXS' and not self._waxs_logged)):
+            logging.info(f"Called get_corrections_full() for {detector_type} detector")
+        
         # Use specified metadata function from utils if available, otherwise use PDI processing
         if self.read_metadata_function is not None and hasattr(utils, self.read_metadata_function):
             metadata_function = getattr(utils, self.read_metadata_function)
@@ -287,16 +360,41 @@ class Experiment:
             # Using current PDI metadata processing
             i0, bstop, csv_path = self.process_pdi_full(raw_file_path, detector_type)
         
+        # Log metadata processing for first runs only
+        if ((detector_type.upper() == 'SAXS' and not self._saxs_logged) or 
+            (detector_type.upper() == 'WAXS' and not self._waxs_logged)):
+            logging.info(f"  Processing metadata from: {csv_path}")
+            logging.info(f"  Raw I0: {i0:.6f}, Raw Bstop: {bstop:.6f}")
+        
         # Calculate correction factors
         transmission_factor_raw = bstop
         transmission_ratio = bstop / i0
+        
+        # Log transmission calculations for first runs only
+        if ((detector_type.upper() == 'SAXS' and not self._saxs_logged) or 
+            (detector_type.upper() == 'WAXS' and not self._waxs_logged)):
+            logging.info(f"  Calculating transmission: ratio = {transmission_ratio:.6f}")
         
         # Calculate material properties if thickness not provided
         if self.thickness is None:
             material_props = self.calculate_sld_mu_thickness(transmission_ratio)
             thickness = material_props['thickness_m']
+            
+            # Log material calculations for first runs only
+            if ((detector_type.upper() == 'SAXS' and not self._saxs_logged) or 
+                (detector_type.upper() == 'WAXS' and not self._waxs_logged)):
+                logging.info(f"  Material properties calculated:")
+                logging.info(f"    Compound: {self.compound}")
+                logging.info(f"    Energy: {self.energy_keV} keV")
+                logging.info(f"    Density: {self.density_g_cm3} g/cm³")
+                logging.info(f"    Absorption coefficient: {material_props['mu']:.6f} 1/m")
+                logging.info(f"    SLD: {material_props['sld']:.6e}")
+                logging.info(f"    Calculated thickness: {thickness:.6f} m")
         else:
             thickness = self.thickness
+            if ((detector_type.upper() == 'SAXS' and not self._saxs_logged) or 
+                (detector_type.upper() == 'WAXS' and not self._waxs_logged)):
+                logging.info(f"  Using provided thickness: {thickness:.6f} m")
         
         # Calculate normalization factor: trans_factor * i0_corrected
         # Based on Step1 notebook: normfactor = trans_factor*i0_avg_all[0]
@@ -320,8 +418,23 @@ class Experiment:
         ----------
         raw_file_path : str
             Path to the SAXS .raw file
+            
+        Returns
+        -------
+        Dict
+            Dictionary containing plotting data: q, intensity, error, filename, corrections
         """
-        print(f"Processing SAXS file: {raw_file_path}")
+                
+        # Log detailed information for first SAXS file only
+        if not self._saxs_logged:
+            logging.info("")
+            logging.info("=" * 60)
+            logging.info("FIRST SAXS FILE PROCESSING")
+            logging.info("=" * 60)
+            logging.info(f"Raw file: {raw_file_path}")
+            logging.info(f"SAXS PONI file: {self.saxs_poni_path}")
+            logging.info(f"SAXS mask file: {os.path.join(self.poni_directory, self.mask_files['saxs']) if self.mask_files['saxs'] else 'None'}")
+            logging.info("")
         
         # Read raw detector data
         detector_data = self.read_raw_detector_file(raw_file_path, 'SAXS')
@@ -332,11 +445,21 @@ class Experiment:
         
         corrections = self.get_corrections_full(raw_file_path, "SAXS")
         
-        print(f"  I0: {corrections['i0_corrected']:.3f}, "
-              f"Bstop: {corrections['bstop_corrected']:.3f}, "
-              f"Trans_factor: {corrections['transmission_factor']:.3f}, "
-              f"Trans_ratio: {corrections['transmission_ratio']:.4f}, "
-              f"Normalization: {corrections['normalization_factor']:.3f}")
+        # Log corrections for first SAXS file only
+        if not self._saxs_logged:
+            logging.info(f"  Metadata file: {corrections['metadata_path']}")
+            # logging.info(f"  I0 corrected: {corrections['i0_corrected']:.6f}")
+            # logging.info(f"  Bstop corrected: {corrections['bstop_corrected']:.6f}")
+            # logging.info(f"  Transmission factor: {corrections['transmission_factor']:.6f}")
+            # logging.info(f"  Transmission ratio: {corrections['transmission_ratio']:.6f}")
+            # logging.info(f"  Sample thickness: {corrections['thickness']:.6f} m")
+            # logging.info(f"  Normalization factor: {corrections['normalization_factor']:.6f}")
+            # logging.info("")
+            # logging.info("Integration parameters:")
+            # logging.info(f"  Radial bins: {self.npt_radial}")
+            # logging.info(f"  Error model: {self.error_model}")
+            logging.info("=" * 60)
+            self._saxs_logged = True
         
         # Create output directory and filename
         output_dir = self.create_output_directory(raw_file_path, 'SAXS')
@@ -353,9 +476,16 @@ class Experiment:
             normalization_factor=corrections['normalization_factor'],
             filename=output_path
         )
-        
-        print(f"  Saved to: {output_path}")
-         
+                
+        # Return plotting data
+        return {
+            'q': q,
+            'intensity': intensity,
+            'error': error,
+            'filename': output_filename,
+            'corrections': corrections,
+            'raw_file_path': raw_file_path
+        }
     def process_waxs_file(self, raw_file_path: str):
         """
         Process a single WAXS .raw file with corrections and 1D integration.
@@ -364,11 +494,34 @@ class Experiment:
         ----------
         raw_file_path : str
             Path to the WAXS .raw file
-        """
+            
+        Returns
+        -------
+        Dict
+            Dictionary containing plotting data: q, intensity, error, filename, corrections
+        """        
         print(f"Processing WAXS file: {raw_file_path}")
+        
+        # Log detailed information for first WAXS file only
+        if not self._waxs_logged:
+            logging.info("")
+            logging.info("=" * 60)
+            logging.info("FIRST WAXS FILE PROCESSING")
+            logging.info("=" * 60)
+            logging.info(f"Raw file: {raw_file_path}")
+            logging.info(f"WAXS PONI file: {self.waxs_poni_path}")
+            logging.info(f"WAXS mask file: {os.path.join(self.poni_directory, self.mask_files['waxs']) if self.mask_files['waxs'] else 'None'}")
+            logging.info(f"Detector shape: {self.detector_shapes['waxs']}")
+            logging.info("")
         
         detector_data = self.read_raw_detector_file(raw_file_path, 'WAXS')
         corrections = self.get_corrections_full(raw_file_path, "WAXS")
+
+        # Log corrections for first WAXS file only
+        if not self._waxs_logged:
+            logging.info(f"  Metadata file: {corrections['metadata_path']}")
+            logging.info("=" * 60)
+            self._waxs_logged = True
 
         # Create output directory and filename
         output_dir = self.create_output_directory(raw_file_path, 'WAXS')
@@ -385,8 +538,16 @@ class Experiment:
             normalization_factor=corrections['normalization_factor'],
             filename=output_path
         )
-        
-        print(f"  Saved to: {output_path}")
+                
+        # Return plotting data
+        return {
+            'q': q,
+            'intensity': intensity,
+            'error': error,
+            'filename': output_filename,
+            'corrections': corrections,
+            'raw_file_path': raw_file_path
+        }
 
 
 def find_all_raw_files(experiment: Experiment, data_directory_path: str) -> Tuple[List[str], List[str]]:
@@ -404,7 +565,7 @@ def find_all_raw_files(experiment: Experiment, data_directory_path: str) -> Tupl
     Tuple[List[str], List[str]]
         Lists of SAXS and WAXS .raw file paths
     """
-    if (experiment.mode.upper() != "WAXS"):
+    if (experiment.mode != "WAXS"):
         saxs_pattern = os.path.join(data_directory_path, "**/SAXS/**/*.raw")
         saxs_files = [f for f in glob.glob(saxs_pattern, recursive=True) 
                     if not f.endswith('.raw.pdi')]
@@ -412,7 +573,7 @@ def find_all_raw_files(experiment: Experiment, data_directory_path: str) -> Tupl
         # Don't include SAXS files in just WAXS
         saxs_files = []
     
-    if (experiment.mode.upper() != "SAXS"):
+    if (experiment.mode != "SAXS"):
         waxs_pattern = os.path.join(data_directory_path, "**/WAXS/**/*.raw")
         waxs_files = [f for f in glob.glob(waxs_pattern, recursive=True)
                     if not f.endswith('.raw.pdi')]
@@ -422,10 +583,20 @@ def find_all_raw_files(experiment: Experiment, data_directory_path: str) -> Tupl
         
     return sorted(saxs_files), sorted(waxs_files)
 
-
-def main():
+def full_correction_integration(plotting=False):
     """
     Main function to process all .raw files in the dataset.
+    
+    Parameters
+    ----------
+    plotting : bool, default False
+        If True, return plotting data instead of just processing files
+        
+    Returns
+    -------
+    Dict or None
+        If plotting=True, returns dictionary with plotting data.
+        If plotting=False, returns None (just processes files).
     """
     print("SWAXS Data Correction and 1D Integration Demo")
     print("=" * 50)
@@ -442,24 +613,53 @@ def main():
     print(f"Found {len(saxs_files)} SAXS files and {len(waxs_files)} WAXS files to process")
     print()
     
+    # Initialize plotting data collection if requested
+    if plotting:
+        plotting_data = {
+            'saxs_data': [],
+            'waxs_data': [],
+            'metadata': {
+                'timers': [],
+                'temperatures': [], 
+                'i0_values': [],
+                'bstop_values': [],
+                'filenames': []
+            }
+        }
+    
     # Process all SAXS files
     if saxs_files:
         print("Processing SAXS files...")
         for saxs_file in saxs_files:
-            experiment.process_saxs_file(saxs_file)
+            saxs_result = experiment.process_saxs_file(saxs_file)
+            if plotting:
+                plotting_data['saxs_data'].append(saxs_result)
+                # Extract metadata for monitoring plots
+                corrections = saxs_result['corrections']
+                plotting_data['metadata']['i0_values'].append(corrections['i0_corrected'])
+                plotting_data['metadata']['bstop_values'].append(corrections['bstop_corrected'])
+                plotting_data['metadata']['filenames'].append(saxs_result['filename'])
         print()
     
     # Process all WAXS files
     if waxs_files:
         print("Processing WAXS files...")
         for waxs_file in waxs_files:
-            experiment.process_waxs_file(waxs_file)
-
+            waxs_result = experiment.process_waxs_file(waxs_file)
+            if plotting:
+                plotting_data['waxs_data'].append(waxs_result)
         print()
     
     print("Processing complete!")
     
-    return 0
+    # Return plotting data if requested
+    if plotting:
+        return plotting_data
+    else:
+        return None
+    
+def main():
+    return full_correction_integration()
 
 if __name__ == "__main__":
-    exit(main())
+    main()
