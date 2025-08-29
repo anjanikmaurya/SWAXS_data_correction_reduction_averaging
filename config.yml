@@ -1,5 +1,4 @@
-# Detector mask files: allow for absolute paths. 
-data_directory: "/Users/vsomani/Documents/SWAXS_data_reduction_correction_Analysis/larger_test"
+data_directory: "/Users/vsomani/Documents/SWAXS_data_reduction_correction_Analysis/run5_test"
 poni_directory: "poni"
 
 poni_files:
