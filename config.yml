@@ -1,4 +1,4 @@
-data_directory: "/Users/vsomani/Documents/SWAXS_data_reduction_correction_Analysis/run5_test"
+data_directory: "/Users/vsomani/Documents/SWAXS_data_reduction_correction_Analysis/larger_test"
 poni_directory: "poni"
 
 poni_files:
@@ -36,6 +36,9 @@ mode: "SWAXS"
 # If thickness is null, compute it manually. Else, use thickness value
 thickness: null
 
+# Add mask
+
+
 # TODO: implement data reading function if any are specified in utils.py
 # Specify function name.
 # IMPORTANT: Specified functions must be in utils.py and must follow input and output in exactly the same way as noted below
@@ -43,7 +46,12 @@ thickness: null
 # INPUT: Raw data file path, output: dataframe of processed raw data in int32 and reshaped
 # TODO: implement this
 read_data_function: null
-# INPUT: raw data file path. Output: Tuple (i0, bstop, csv_dir)
+
+
+metadata_format: "csv"
+# INPUT: raw data file path. Output: Tuple (i0, bstop, csv_dir). 
+# XXX: Do we need other data from the metadata file? How would we use it, if so?
+# Provide a different reading metadata function if not reading CSV or PDI
 read_metadata_function: null
 # TODO: implement extra functions if any are specified
 extra_corrections: []

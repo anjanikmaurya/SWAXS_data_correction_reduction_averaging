@@ -4,7 +4,7 @@ Script to copy SAXS and WAXS data files from atT/ directory structure
 to larger_test/2D/ with flattened organization.
 
 Excludes: standard/, poni/, OneD_integrated* directories
-Copies only: .raw and .pdi files from SAXS/ and WAXS/ subdirectories
+Copies: .raw, .pdi files from SAXS/ and WAXS/ subdirectories, and .csv files from experiment root
 """
 
 import os
@@ -92,10 +92,14 @@ def copy_saxs_waxs_files(source_dir, target_dir, dry_run=False):
         logger.info(f"Processing directory: {item.name}")
         stats['directories_processed'] += 1
         
+        # Copy CSV files from experiment root directory
+        csv_files_copied = copy_csv_files(item, target_dir, dry_run)
+        stats['saxs_files_copied'] += csv_files_copied  # Add to saxs count for summary
+        
         # Process SAXS subdirectory
         saxs_dir = item / 'SAXS'
         if saxs_dir.exists():
-            files_copied = copy_detector_files(saxs_dir, saxs_target, 'SAXS', dry_run)
+            files_copied = copy_detector_files(saxs_dir, saxs_target, target_dir, 'SAXS', dry_run)
             stats['saxs_files_copied'] += files_copied
         else:
             logger.warning(f"No SAXS directory found in {item.name}")
@@ -103,7 +107,7 @@ def copy_saxs_waxs_files(source_dir, target_dir, dry_run=False):
         # Process WAXS subdirectory  
         waxs_dir = item / 'WAXS'
         if waxs_dir.exists():
-            files_copied = copy_detector_files(waxs_dir, waxs_target, 'WAXS', dry_run)
+            files_copied = copy_detector_files(waxs_dir, waxs_target, target_dir, 'WAXS', dry_run)
             stats['waxs_files_copied'] += files_copied
         else:
             logger.warning(f"No WAXS directory found in {item.name}")
@@ -120,13 +124,55 @@ def copy_saxs_waxs_files(source_dir, target_dir, dry_run=False):
     if stats['errors'] > 0:
         logger.error(f"Errors encountered: {stats['errors']}")
 
-def copy_detector_files(source_detector_dir, target_detector_dir, detector_type, dry_run):
+def copy_csv_files(experiment_dir, target_dir, dry_run):
+    """
+    Copy CSV files from experiment root directory to target 2D directory
+    
+    Args:
+        experiment_dir (Path): Source experiment directory
+        target_dir (Path): Target 2D directory
+        dry_run (bool): If True, only show what would be copied
+        
+    Returns:
+        int: Number of CSV files copied
+    """
+    logger = logging.getLogger(__name__)
+    files_copied = 0
+    
+    # Find all .csv files in experiment root
+    csv_files = list(experiment_dir.glob('*.csv'))
+    
+    for file_path in csv_files:
+        target_file = target_dir / file_path.name
+        
+        if target_file.exists():
+            logger.warning(f"CSV file already exists, skipping: {file_path.name}")
+            continue
+            
+        try:
+            if not dry_run:
+                shutil.copy2(file_path, target_file)
+                logger.debug(f"Copied CSV to 2D/: {file_path.name}")
+            else:
+                logger.info(f"DRY RUN: Would copy CSV to 2D/: {file_path.name}")
+            files_copied += 1
+            
+        except Exception as e:
+            logger.error(f"Failed to copy CSV {file_path}: {e}")
+            
+    if files_copied > 0:
+        logger.info(f"Copied {files_copied} CSV files from {experiment_dir.name}")
+        
+    return files_copied
+
+def copy_detector_files(source_detector_dir, target_detector_dir, csv_target_dir, detector_type, dry_run):
     """
     Copy .raw and .pdi files from detector directory to target
     
     Args:
         source_detector_dir (Path): Source SAXS or WAXS directory
         target_detector_dir (Path): Target SAXS or WAXS directory
+        csv_target_dir (Path): Not used (kept for compatibility)
         detector_type (str): 'SAXS' or 'WAXS' for logging
         dry_run (bool): If True, only show what would be copied
         
@@ -136,7 +182,7 @@ def copy_detector_files(source_detector_dir, target_detector_dir, detector_type,
     logger = logging.getLogger(__name__)
     files_copied = 0
     
-    # Find all .raw and .pdi files
+    # Find all .raw and .pdi files (CSV files handled separately)
     file_extensions = ['*.raw', '*.pdi']
     files_to_copy = []
     
