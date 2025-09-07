@@ -1,8 +1,28 @@
 import numpy as np
+import os
 
-def compare_dat_files(file1_path, file2_path, tolerance=1e-7):
+def write_comparison_results(file1_path, file2_path, diff, output_file):
     """
-    Compare two .dat files, ignoring comment lines (starting with #).
+    Write comparison results to a file.
+    
+    Args:
+        file1_path (str): Path to first .dat file
+        file2_path (str): Path to second .dat file
+        diff (numpy.ndarray): Full differences array between files
+        output_file (str): Path to output file
+    """
+    print(f"Paths: {file1_path}, {file2_path} \n")
+    with open(output_file, 'a') as f:
+        f.write(f"File 1: {file1_path}\n")
+        f.write(f"File 2: {file2_path}\n")
+        f.write("Differences (first 100 rows):\n")
+        np.savetxt(f, diff[:100], fmt='%.6e')
+        f.write("\n\n")
+
+def compare_dat_files(file1_path, file2_path, tolerance=1e-7, output_to_file=None):
+    """
+    Compare the first two columns of two .dat files (ignoring sigma),
+    ignoring comment lines (starting with #).
     
     Args:
         file1_path (str): Path to first .dat file
@@ -12,19 +32,22 @@ def compare_dat_files(file1_path, file2_path, tolerance=1e-7):
     Returns:
         bool: True if files match within tolerance, False otherwise
     """
-    
+    print(f"Comparing files {file1_path}, {file2_path}")
     # Read data from both files, skipping comment lines
     data1 = np.loadtxt(file1_path, comments='#')
     data2 = np.loadtxt(file2_path, comments='#')
     
-    # Check if shapes match
-    if data1.shape != data2.shape:
-        print(f"Shape mismatch: {file1_path} has shape {data1.shape}, {file2_path} has shape {data2.shape}")
+    # Check if first two columns match in shape
+    if data1.shape[0] != data2.shape[0]:
+        print(f"Row count mismatch: {file1_path} has {data1.shape[0]} rows, {file2_path} has {data2.shape[0]} rows")
         return False
     
-    # Compare data with tolerance
+    # Compare only first two columns with tolerance
     diff = np.abs(data1 - data2)
     mismatch_indices = np.where(diff > tolerance)
+    
+    if output_to_file:
+        write_comparison_results(file1_path, file2_path, diff, output_to_file)
     
     if len(mismatch_indices[0]) > 0:
         # Print first mismatch location
@@ -32,19 +55,29 @@ def compare_dat_files(file1_path, file2_path, tolerance=1e-7):
         print(f"Mismatch at data row {row}, column {col}:")
         print(f"  {file1_path}: {data1[row, col]}")
         print(f"  {file2_path}: {data2[row, col]}")
-        print(f"  Difference: {diff[row, col]} (tolerance: {tolerance})")
+        print(f"  Difference: {diff[row, col]} (tolerance: {tolerance})\n")
         return False
     
-    print("Files match within tolerance")
+    print("Files match within tolerance\n")
     return True
 
-# compare_dat_files('atT_smaller/OneD_integrated_SAXS_01/Reduction/Hor_all_SAXS.dat',
-#                   'run5_test/1D/SAXS/Reduction/sone_Hor_scan_Run5_RampT20_ctr0_scan1_0000.dat')
-# compare_dat_files('atT_smaller/OneD_1dd_WAXS_01/Reduction/Hor_all_WAXS.dat', 
-#                   'run5_test/1D/WAXS/Reduction/b_tassone_Hor_scan_Run5_RampT20_ctr0_scan1_0000.dat')
+compare_dat_files(
+os.path.join("atT/OneD_integrated_WAXS_01/Reduction", 'Hor_all_WAXS.dat'),
+r"larger_test/1D/WAXS/Averaged/XHor_scan_Run4X_WAXS_averaged.dat"
+)
+compare_dat_files(
+os.path.join("atT/OneD_integrated_SAXS_01/Reduction", 'Hor_all_SAXS.dat'),
+r"larger_test/1D/SAXS/Averaged/XHor_scan_Run4X_SAXS_averaged.dat"
+)
 
 compare_dat_files(
-"atT/OneD_integrated_SAXS_01/Reduction/Run10_AcOH_RampT20_ctr0_all_SAXS.dat",
-
+os.path.join("atT/OneD_integrated_SAXS_01/Reduction", "Run10_AcOH_RampT22_ctr1_all_SAXS.dat"),
+"larger_test/1D/SAXS/Averaged/XRun10_AcOHXT22Xctr1X_SAXS_averaged.dat",
+output_to_file="differences.txt"
 )
-# What if the SAXS data comes in before the WAXS data
+
+compare_dat_files(
+os.path.join("atT/OneD_integrated_WAXS_01/Reduction", "Run10_AcOH_RampT22_ctr1_all_WAXS.dat"),
+r"larger_test/1D/WAXS/Averaged/XRun10_AcOHXT22Xctr1X_WAXS_averaged.dat",
+output_to_file="differences.txt"
+)

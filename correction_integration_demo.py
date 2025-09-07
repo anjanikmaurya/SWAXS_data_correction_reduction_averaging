@@ -334,11 +334,11 @@ class Experiment:
         # Use specified metadata function from utils if available, otherwise use PDI processing
         if self.read_metadata_function is not None and hasattr(utils, self.read_metadata_function):
             metadata_function = getattr(utils, self.read_metadata_function)
-            i0, bstop, metadata_path = metadata_function(raw_file_path, detector_type)
+            i0, bstop, metadata_path = metadata_function(raw_file_path)
         else:
             # Using current PDI metadata processing
             if self.metadata_format == "csv":
-                i0, bstop, metadata_path = process_pdi_metadata.process_pdi_full(raw_file_path, detector_type)
+                i0, bstop, metadata_path = process_csv_metadata.process_csv_metadata(raw_file_path)
             elif self.metadata_format == "pdi":
                 i0, bstop, metadata_path = process_pdi_metadata.process_pdi_full(raw_file_path, detector_type)
             else:
@@ -451,7 +451,7 @@ class Experiment:
             filename=str(output_path)
         )
                 
-        add_pdi_data_to_dat(dat_file_path= output_path, pdi_file_path=corrections['metadata_path'])
+        add_metadata_to_dat(dat_file_path= output_path, metadata_file_path=corrections['metadata_path'])
         # Return plotting data
         return {
             'q': q,
@@ -515,7 +515,7 @@ class Experiment:
             normalization_factor=corrections['normalization_factor'],
             filename=str(output_path)
         )
-        add_pdi_data_to_dat(dat_file_path= output_path, pdi_file_path=corrections['metadata_path'])
+        add_metadata_to_dat(dat_file_path= output_path, metadata_file_path=corrections['metadata_path'])
 
         # Return plotting data
         return {
@@ -637,7 +637,7 @@ def full_correction_integration(plotting=False):
         return None
 
 
-def add_pdi_data_to_dat(dat_file_path: Path, pdi_file_path: str):
+def add_metadata_to_dat(dat_file_path: Path, metadata_file_path: str):
     """
     Add PDI metadata to the end of a .dat file as commented information.
     
@@ -657,16 +657,16 @@ def add_pdi_data_to_dat(dat_file_path: Path, pdi_file_path: str):
     if not dat_file_path.exists():
         raise FileNotFoundError(f"DAT file not found: {dat_file_path}")
     
-    if not Path(pdi_file_path).exists():
-        raise FileNotFoundError(f"PDI file not found: {pdi_file_path}")
+    if not Path(metadata_file_path).exists():
+        raise FileNotFoundError(f"PDI file not found: {metadata_file_path}")
     
     # Read the PDI file
-    with open(pdi_file_path, 'r') as f:
+    with open(metadata_file_path, 'r') as f:
         pdi_lines = f.readlines()
     
     # Append PDI data to the .dat file
     with open(dat_file_path, 'a') as f:
-        f.write(f"\n# PDI metadata from: {Path(pdi_file_path).name}\n")
+        f.write(f"\n#  Metadata from: {Path(metadata_file_path).name}\n")
         
         for line in pdi_lines:
             clean_line = line.rstrip()
@@ -677,8 +677,6 @@ def add_pdi_data_to_dat(dat_file_path: Path, pdi_file_path: str):
                 else:
                     f.write(f"# {clean_line}\n")
         
-        f.write("# End of PDI metadata\n")
-
 def main():
     return full_correction_integration()
 

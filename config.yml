@@ -1,13 +1,15 @@
 data_directory: "/Users/vsomani/Documents/SWAXS_data_reduction_correction_Analysis/larger_test"
+# Poni directory should be within data directory
 poni_directory: "poni"
 
 poni_files:
   saxs: "atT_SAXS.poni"
   waxs: "atT_WAXS.poni"
 
+# Null if you do not want to use mask correction
 mask_files:
   saxs: "RT_SAXS_mask_03.edf"
-  waxs: "RT_WAXS_mask.edf"
+  waxs: null
 # Detector dimensions (pixels) -- list
 detector_shapes:
   saxs: [1043, 981]
