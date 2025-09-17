@@ -3,7 +3,6 @@ pyproject.toml
 .python-version
 uv.lock
 atT/
-poni/
 Hor_scan_Run4_RampT20_ctr0/
 atT_smaller/
 .DS_Store

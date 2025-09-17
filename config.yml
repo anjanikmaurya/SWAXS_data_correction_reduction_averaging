@@ -1,4 +1,4 @@
-data_directory: "/Users/vsomani/Documents/SWAXS_data_reduction_correction_Analysis/demo"
+data_directory: "./demo"
 # Poni directory should be within data directory
 poni_directory: "poni"
 poni_files:

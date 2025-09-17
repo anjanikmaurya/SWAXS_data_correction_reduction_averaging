@@ -18,7 +18,7 @@ pip install -r requirements.txt
 
 ## 2. Run demo example
 
-Basic demo example configured in demo/, with a built in config.yml file in this directory working. First, look through the demo directory to understand the proper file structure. Also, look through the config.yml file
+Basic demo example configured in demo/, with a built in config.yml file in this directory working. First, look through the demo directory to understand the proper file structure. Also, look through the config.yml file to see a simple configuration file.
 
  Run 
 ```bash
