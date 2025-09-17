@@ -13,8 +13,9 @@ def find_row_number_to_read(raw_file_path: Path):
         raise RuntimeError(f"Could not find metadata file for raw file {raw_file_path}")
     return int(capture.group(1)) # Represents corresponding index of the CSV file
     
-def process_csv_metadata(raw_file_path: Path):
+def process_csv_metadata(raw_file_path: Path|str):
     """Takes in a raw data file path, reads a CSV and outputs a tuple containing i0, bstop, and metadata file path"""
+    raw_file_path = Path(raw_file_path) # Convert to Path object if not already path
     raw_path = raw_file_path
     raw_filename = raw_path.name 
     csv_dir = raw_path.parent.parent
@@ -30,7 +31,7 @@ def process_csv_metadata(raw_file_path: Path):
     
     df = pd.read_csv(csv_file)
     index_number_csv = find_row_number_to_read(raw_file_path)
-
-    i0 = df.iloc[index_number_csv, 3]
-    bstop = df.iloc[index_number_csv, 6]
-    return i0, bstop, csv_file
+    temp = df.iloc[index_number_csv].to_dict()
+    # Keys often have spaces preceding them. Get rid of these.
+    proper_dict = {key.strip(): value for key, value in temp.items()}
+    return proper_dict

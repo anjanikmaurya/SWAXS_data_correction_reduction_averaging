@@ -29,11 +29,11 @@ Logging rules:
 I should first complete the logic and then afterwards shard my directories.
 When completing the other logic, I should probably add it to another file
 """
-# TODO: 1-5: Testing with different 1-5 data.
 # TODO: 17-2: Look at how to add these into
 
-# TODO: Plots: Use Anjani's function to create y offsets
 # TODO: Read CSVs. If multiple rows in CSV, then index of CSV corresponds to number after scan
+# TODO: Move reductions.log to poni directory
+# REVISIT: Logging file location
 import glob
 import numpy as np
 import yaml
@@ -44,7 +44,6 @@ import xraydb
 from typing import Dict, List, Tuple
 from pathlib import Path
 import logging
-import pandas as pd
 import argparse
 
 # Importing files
@@ -52,20 +51,16 @@ import utils
 import process_pdi_metadata
 import process_csv_metadata
 
+
 # Logging will be configured after loading config in Experiment.__init__
-logging.basicConfig(filename = "corrections.log",
-                    filemode = "w", 
-                    level = logging.INFO,
-                    format="%(asctime)s -  %(name)s - %(levelname)s - %(message)s",
-                    datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger('swaxs_pipeline')
 # Suppress PyFAI warnings to reduce log spam while keeping error messages
 logging.getLogger('pyFAI').setLevel(logging.ERROR)
 
 class Experiment:
-    # Type hints for dynamically assigned config attributes
-    data_directory: str
-    poni_directory: Path
+    # Type hints for dynamically assigned config attributes.
+    data_directory: Path
+    poni_directory: Path # Name of poni directory
     compound: str
     energy_keV: float
     density_g_cm3: float
@@ -82,6 +77,10 @@ class Experiment:
     bstop_air: float
     mode: str
     metadata_format: str
+    
+    poni_path: Path # Path to poni directory
+    _log_pending: bool # Specifies if the first-run log is currently pending
+
     """
     SWAXS Experiment class for managing configuration and data processing.
     
@@ -99,7 +98,6 @@ class Experiment:
             Path to the configuration file
         """
         self.config_path = config_path
-        # Logging state tracking for first-run detailed logging
         self._log_pending = True
 
         self._load_and_assign_config()
@@ -111,13 +109,12 @@ class Experiment:
         
         with open(self.config_path, 'r') as f:
             config = yaml.safe_load(f)
-        
-        # Log all configuration information once
-        logger.info("_load_and_assign_config called")
-
-        logger.info("=" * 60)
-        logger.info("EXPERIMENT CONFIGURATION")
-        logger.info("=" * 60)
+        self.data_directory = Path(config['data_directory'])
+        del config['data_directory'] # Don't reread the data directory -- important to not store as a string
+        if not self.data_directory.exists():
+            raise RuntimeError("Data Directory Not Found!")
+        self._setup_logging()
+        # Log all configuration information onc
         logger.info(f"Configuration file: {self.config_path}")
         logger.info("")
         
@@ -137,12 +134,28 @@ class Experiment:
         self.mode = self.mode.upper()
         logger.info("")
         logger.info("=" * 60)
+    def _setup_logging(self):
+        logging_path = self.data_directory / "reductions.log"
+        logging.basicConfig(filename = logging_path,
+            filemode = "w", 
+            level = logging.INFO,
+            format="%(asctime)s -  %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S")
+        logger.info("_load_and_assign_config called")
 
+        logger.info("=" * 60)
+        logger.info("EXPERIMENT CONFIGURATION")
+        logger.info("=" * 60)
     
     def _setup_directories(self):
         """Setup computed directory paths."""
-        self.data_directory_2d = Path(self.data_directory) / "2D"
-        self.poni_directory = Path(self.data_directory) / Path(self.poni_directory)
+        self.data_directory_2d = self.data_directory / "2D"
+        if not self.data_directory_2d.exists():
+            raise RuntimeError(f"No 2D Directory Found in {self.data_directory}. Please move your data to a 2D directory.")
+        self.poni_path = self.data_directory / self.poni_directory
+        if not self.poni_directory:
+            raise RuntimeError(f"PONI Directory not found: ")
+
         self.output_directory_1d = Path(self.data_directory) / "1D"
         self.output_directory_1d.mkdir(parents=True, exist_ok=True)
         
@@ -151,7 +164,7 @@ class Experiment:
     
     def _load_saxs_integrator(self):
         """Load PyFAI integrator and mask for SAXS detector."""
-        self.saxs_poni_path = self.poni_directory / self.poni_files['saxs']
+        self.saxs_poni_path = self.poni_path / self.poni_files['saxs']
         
         if not self.saxs_poni_path.exists():
             raise FileNotFoundError(f"SAXS PONI file not found: {self.saxs_poni_path}")
@@ -161,7 +174,7 @@ class Experiment:
         
         # Load SAXS detector mask
         if self.mask_files['saxs'] is not None:
-            saxs_mask_path = self.poni_directory / self.mask_files['saxs']
+            saxs_mask_path = self.poni_path / self.mask_files['saxs']
             self.saxs_mask = fabio.open(str(saxs_mask_path)).data
             logger.info(f"Loaded SAXS mask from: {saxs_mask_path}")
         else:
@@ -170,7 +183,7 @@ class Experiment:
     
     def _load_waxs_integrator(self):
         """Load PyFAI integrator and mask for WAXS detector."""
-        self.waxs_poni_path = self.poni_directory / self.poni_files['waxs']
+        self.waxs_poni_path = self.poni_path / self.poni_files['waxs']
         
         if not self.waxs_poni_path.exists():
             raise FileNotFoundError(f"WAXS PONI file not found: {self.waxs_poni_path}")
@@ -180,7 +193,7 @@ class Experiment:
         
         # Load WAXS detector mask
         if self.mask_files['waxs'] is not None:
-            waxs_mask_path = self.poni_directory / self.mask_files['waxs']
+            waxs_mask_path = self.poni_path / self.mask_files['waxs']
             self.waxs_mask = fabio.open(str(waxs_mask_path)).data 
             logger.info(f"Loaded WAXS mask from: {waxs_mask_path}")
         else:
@@ -210,10 +223,8 @@ class Experiment:
         
         Parameters
         ----------
-        raw_file_path : str
-            Path to the .raw detector file
-        detector_type : str
-            Type of detector ('SAXS' or 'WAXS')
+        raw_file_path Path to the .raw detector file
+        detector_type : Type of detector ('SAXS' or 'WAXS')
             
         Returns
         -------
@@ -228,8 +239,7 @@ class Experiment:
             shape = tuple(self.detector_shapes['saxs'])
         elif detector_type.upper() == 'WAXS':
             shape = tuple(self.detector_shapes['waxs'])
-        else:
-            raise ValueError("detector_type must be 'SAXS' or 'WAXS'")
+
         data = np.fromfile(str(raw_file_path), dtype=np.int32).reshape(shape)
 
         
@@ -272,6 +282,7 @@ class Experiment:
                                      density=self.density_g_cm3) * 100  # Convert to 1/m
         
         # Calculate scattering length density (SLD) using periodictable
+        # REVISIT: Should I allow a configuration to allow user to directly compute SLD?
         material = pt.formula(self.compound) # pt library works properly even with red squiggle
         sld, mu_pt = pt.xray_sld(material, energy=self.energy_keV, density=self.density_g_cm3)
 
@@ -322,22 +333,22 @@ class Experiment:
         if self._log_pending:
             logger.info(f"Called get_corrections_full() for {detector_type} detector with file path: {raw_file_path}")
         
-        # Use specified metadata function from utils if available, otherwise use PDI processing
+        # Use specified metadata function from utils if available, otherwise use CSV processing
         if self.read_metadata_function is not None and hasattr(utils, self.read_metadata_function):
             metadata_function = getattr(utils, self.read_metadata_function)
-            i0, bstop, metadata_path = metadata_function(raw_file_path)
+            metadata_dict = metadata_function(raw_file_path)
         else:
             # Using current PDI metadata processing
             if self.metadata_format == "csv":
-                i0, bstop, metadata_path = process_csv_metadata.process_csv_metadata(raw_file_path)
-            elif self.metadata_format == "pdi":
-                i0, bstop, metadata_path = process_pdi_metadata.process_pdi_full(raw_file_path, detector_type)
+                metadata_dict = process_csv_metadata.process_csv_metadata(raw_file_path)
+            # elif self.metadata_format == "pdi":
+            #     i0, bstop, metadata_path = process_pdi_metadata.process_pdi_full(raw_file_path, detector_type)
             else:
-                raise RuntimeError(f"Metadata format {self.metadata_format} not support. Needs to be csv or pdi.")
+                raise RuntimeError(f"Metadata format {self.metadata_format} not supported. Needs to be csv.")
         
-        # Log metadata processing for first runs only
+        i0 = metadata_dict['i0']
+        bstop = metadata_dict['bstop']
         if self._log_pending:
-            logger.info(f"  Processing metadata from: {metadata_path}")
             logger.info(f"  Raw I0: {i0:.6f}, Raw Bstop: {bstop:.6f}")
         
         # Calculate correction factors
@@ -379,7 +390,7 @@ class Experiment:
             'transmission_ratio': transmission_ratio,
             'thickness': thickness,
             'normalization_factor': normalization_factor,
-            'metadata_path': metadata_path
+            'metadata_dict': metadata_dict
         }
         
     def process_saxs_file(self, raw_file_path: Path):
@@ -388,7 +399,7 @@ class Experiment:
         
         Parameters
         ----------
-        raw_file_path : str
+        raw_file_path
             Path to the SAXS .raw file
             
         Returns
@@ -470,7 +481,7 @@ class Experiment:
             logger.info("=" * 60)
             logger.info(f"Raw file: {raw_file_path}")
             logger.info(f"WAXS PONI file: {self.waxs_poni_path}")
-            logger.info(f"WAXS mask file: {self.poni_directory / self.mask_files['waxs'] if self.mask_files['waxs'] else 'None'}")
+            logger.info(f"WAXS mask file: {self.poni_path / self.mask_files['waxs'] if self.mask_files['waxs'] else 'None'}")
             logger.info(f"Detector shape: {self.detector_shapes['waxs']}")
             logger.info("")
         
@@ -491,7 +502,7 @@ class Experiment:
         output_path = output_dir / output_filename
         output_path = output_path.with_stem(f"{output_path.stem}_WAXS")
         
-        # Perform D radial integration with automatic file writing
+        # Perform 1D radial integration with automatic file writing
         # PyFAI will automatically generate headers with detector config and column names
         q, intensity, error = self.ai_waxs.integrate1d(
             detector_data,
@@ -536,13 +547,14 @@ def find_all_raw_files(experiment: Experiment, data_directory_path: Path) -> Tup
         # Don't include SAXS files in just WAXS
         saxs_files = []
     
-    if (experiment.mode != "SAXS"):
+    if (experiment.mode == "SAXS"):
+        # Don't include WAXS files in just SAXS
+        waxs_files = []
+    else:
         waxs_pattern = str(data_directory_path / "**/WAXS/**/*.raw")
         waxs_files = [Path(f) for f in glob.glob(waxs_pattern, recursive=True)
                     if not f.endswith('.raw.pdi')]
-    else:
-        # Don't include WAXS files in just SAXS
-        waxs_files = []
+
         
     return sorted(saxs_files), sorted(waxs_files)
 
@@ -642,18 +654,18 @@ def full_correction_integration(config_file_path = 'config.yml', plotting=False)
 
 def add_metadata_to_dat(dat_file_path: Path, metadata_file_path: Path):
     """
-    Add PDI metadata to the end of a .dat file as commented information.
+    Add metadata to the end of a .dat file as commented information.
     
     Parameters
     ----------
     dat_file_path : str
         Path to the .dat file to modify
-    pdi_file_path : str
+    metadata_file_path : str
         Path to the .pdi file containing metadata
         
     Notes
     -----
-    - Appends PDI data as comments (lines starting with #) to end of .dat file
+    - Appends metadata as comments (lines starting with #) to end of .dat file
     - If a line already starts with #, adds another # prefix  
     - Preserves original .dat file structure and data columns
     """
@@ -669,7 +681,7 @@ def add_metadata_to_dat(dat_file_path: Path, metadata_file_path: Path):
     
     # Append PDI data to the .dat file
     with open(dat_file_path, 'a') as f:
-        f.write(f"\n#  Metadata from: {metadata_file_path.name}\n")
+        f.write(f"\n# METADATA INFORMATION FOR THIS FILE")
         
         for line in pdi_lines:
             clean_line = line.rstrip()
