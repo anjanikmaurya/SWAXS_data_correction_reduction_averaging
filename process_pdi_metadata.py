@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-
+# FIXME: PDI doesn't work properly
 def get_saxs_pdi_from_waxs(pdi_path) -> str:
     """Gets SAXS PDI from WAXS PDI. Also would work in vice-versa, but not used"""
 

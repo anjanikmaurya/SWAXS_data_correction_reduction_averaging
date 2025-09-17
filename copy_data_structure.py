@@ -215,10 +215,10 @@ def copy_detector_files(source_detector_dir, target_detector_dir, csv_target_dir
 def main():
     """Main function with command line argument parsing"""
     parser = argparse.ArgumentParser(description='Copy SAXS/WAXS data with flattened structure')
-    parser.add_argument('--source', default='atT', 
-                       help='Source directory (default: atT)')
-    parser.add_argument('--target', default='larger_test/2D',
-                       help='Target directory (default: larger_test/2D)')
+    parser.add_argument('--source', required= True, 
+                       help='Source directory')
+    parser.add_argument('--target', required= True,
+                       help='Target directory')
     parser.add_argument('--dry-run', action='store_true',
                        help='Show what would be copied without actually copying')
     parser.add_argument('--verbose', action='store_true',

@@ -2,9 +2,11 @@
 Run complete file averaging, using fnmatch patterns in variable averaging_patterns, taking those
 files, and averaging them together
 
-XXX: Figure out naming conventions for averaged files
-XXX: Figure out user friendly usage of this script
-XXX: Should plotting be after performing these corrections?
+TODO: Figure out naming conventions for averaged files
+REVISIT: Should I average CSVs or just PDIs?
+
+
+TODO: Store single row of metadata values.
 """
 from pathlib import Path
 import numpy as np

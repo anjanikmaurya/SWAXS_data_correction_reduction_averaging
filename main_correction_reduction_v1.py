@@ -425,8 +425,6 @@ class Experiment:
         
         # Log corrections for first file only
         if self._log_pending:
-            logger.info(f"  Metadata file: {corrections['metadata_path']}")
-
             self._log_pending = False
         
         # Create output directory and filename
@@ -448,7 +446,7 @@ class Experiment:
             filename=str(output_path)
         )
                 
-        add_metadata_to_dat(dat_file_path= output_path, metadata_file_path=Path(corrections['metadata_path']))
+        add_metadata_to_dat(dat_file_path= output_path, metadata_dict=corrections['metadata_dict'])
         # Return plotting data
         return {
             'q': q,
@@ -490,7 +488,6 @@ class Experiment:
 
         # Log corrections for first file only
         if self._log_pending:
-            logger.info(f"  Metadata file: {corrections['metadata_path']}")
             logger.info("=" * 60)
             self._log_pending = False
 
@@ -512,7 +509,7 @@ class Experiment:
             normalization_factor=corrections['normalization_factor'],
             filename=str(output_path)
         )
-        add_metadata_to_dat(dat_file_path= output_path, metadata_file_path=corrections['metadata_path'])
+        add_metadata_to_dat(dat_file_path= output_path, metadata_dict=corrections['metadata_dict'])
 
         # Return plotting data
         return {
@@ -652,45 +649,33 @@ def full_correction_integration(config_file_path = 'config.yml', plotting=False)
         return None
 
 
-def add_metadata_to_dat(dat_file_path: Path, metadata_file_path: Path):
+def add_metadata_to_dat(dat_file_path: Path, metadata_dict: dict):
     """
     Add metadata to the end of a .dat file as commented information.
     
     Parameters
     ----------
-    dat_file_path : str
+    dat_file_path : Path
         Path to the .dat file to modify
-    metadata_file_path : str
-        Path to the .pdi file containing metadata
+    metadata_dict : dict
+        Dictionary containing metadata with keys as column names and values as data
         
     Notes
     -----
     - Appends metadata as comments (lines starting with #) to end of .dat file
-    - If a line already starts with #, adds another # prefix  
+    - Writes dictionary keys and values in a structured format
     - Preserves original .dat file structure and data columns
     """
     if not dat_file_path.exists():
         raise FileNotFoundError(f"DAT file not found: {dat_file_path}")
     
-    if not Path(metadata_file_path).exists():
-        raise FileNotFoundError(f"PDI file not found: {metadata_file_path}")
-    
-    # Read the PDI file
-    with open(metadata_file_path, 'r') as f:
-        pdi_lines = f.readlines()
-    
-    # Append PDI data to the .dat file
+    # Append metadata dictionary to the .dat file
     with open(dat_file_path, 'a') as f:
-        f.write(f"\n# METADATA INFORMATION FOR THIS FILE")
+        f.write("\n# METADATA INFORMATION FOR THIS FILE\n")
         
-        for line in pdi_lines:
-            clean_line = line.rstrip()
-            if clean_line:  # Skip empty lines
-                # Add # prefix, and add another # if line already starts with #
-                if clean_line.startswith('#'):
-                    f.write(f"#{clean_line}\n")
-                else:
-                    f.write(f"# {clean_line}\n")
+        for key, value in metadata_dict.items():
+            # Format the key-value pair as a comment
+            f.write(f"# {key}: {value}\n")
         
 def main():
     # Add command line argument

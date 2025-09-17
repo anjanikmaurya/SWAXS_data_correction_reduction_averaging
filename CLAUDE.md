@@ -14,7 +14,7 @@ Also, you may find some diagnostic issues with the pt library on vscode, but the
 ```
 SWAXS_data_reduction_correction_Analysis/
 ├── Step1_SWAXS_Reduction_Normlisation_combined_macv4.ipynb  # Original notebook (legacy)
-├── correction_integration_demo.py                          # NEW: Refactored data processing pipeline
+├── main_correction_reduction_v1.py                          # NEW: Refactored data processing pipeline
 ├── config.yml                                              # Configuration file for refactored pipeline
 ├── Step2_SWAXS_bkg_subtract_01.ipynb                       # Background subtraction
 ├── Step3_SAXS_fit_porod_sub_v4.ipynb                       # SAXS analysis & fitting
@@ -28,11 +28,11 @@ SWAXS_data_reduction_correction_Analysis/
 
 ## Data Correction Pipeline
 
-### Refactored Pipeline (`correction_integration_demo.py`)
+### Refactored Pipeline (`main_correction_reduction_v1.py `)
 
 **Status: ACTIVE DEVELOPMENT - Core functionality implemented**
 
-A significant refactoring of the original Step1 notebook has been implemented in `correction_integration_demo.py`. This modular approach provides the same data corrections with improved code organization and configuration management through an Experiment class.
+A significant refactoring of the original Step1 notebook has been implemented in `main_correction_reduction_v1.py` . This modular approach provides the same data corrections with improved code organization and configuration management through an Experiment class.
 
 **Key Components:**
 - `Experiment` class (line 28-121): Configuration management and core functionality
@@ -232,7 +232,7 @@ Future enhancements needed:
    **Refactored Pipeline (Multi-File Processing):**
    ```bash
    # Ensure config.yml is properly configured
-   python correction_integration_demo.py
+   uv run main_correction_reduction_v1.py 
    
    # Then proceed with background subtraction and analysis
    jupyter notebook Step2_SWAXS_bkg_subtract_*.ipynb
@@ -255,7 +255,7 @@ Future enhancements needed:
 
 **⚠️ CRITICAL WARNINGS:**
 
-1. **Validation Required**: The refactored implementation (`correction_integration_demo.py`) is **UNDER ACTIVE DEVELOPMENT** and must be validated against known good results from the original notebook before production use.
+1. **Validation Required**: The refactored implementation (`main_correction_reduction_v1.py`) is **UNDER ACTIVE DEVELOPMENT** and must be validated against known good results from the original notebook before production use.
 
 2. **Configuration Dependency**: Requires a properly configured `config.yml` file with correct file paths and experimental parameters. Missing or incorrect configuration will cause processing failures.
 
