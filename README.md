@@ -1,6 +1,6 @@
 # SWAXS_data_reduction_correction_Analysis
 
-This is a user-guide to use this repository, with detailed steps about how to use it. For a developer-guide, with details about adding code, use developer_guide.md
+This is a user-guide to use this repository, with detailed steps about how to use it. For a developer-guide, with details about adding code, use developer_guide.md.
 
 ## 1. Set up code
 First, clone this repository on the directory where you want to use it.
@@ -19,7 +19,11 @@ pip install requirements.txt
 
 ## 2. Run demo example
 
-(Will add a demo example which should be configured. It can double up as a test-case to make sure that the core functionality is still working properly. 
-Include the steps of starting with the right directory structure). 
+Basic demo example configured in demo/, with a built in config.yml file in this directory working. Run 
+```bash
+python main_correction_reduction_v1.py config.yml
+```
+to use the demo with the configurations set up on config.yml. This demo has a worki
 
-
+## 3. Set up configuration YML file specific to this experiment
+Create a configuration file (similar template to config.yml) specific to a single experiment data round. Note: if you would like to
