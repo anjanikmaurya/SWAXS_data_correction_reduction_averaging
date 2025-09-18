@@ -1,9 +1,9 @@
 # SWAXS_data_reduction_correction_Analysis
 
-This is a user-guide to use this repository, with detailed steps about how to use it. For a developer-guide, with details about adding code, use developer_guide.md.
+This is a user-guide to use this repository, with detailed steps about how to use it. For a developer-guide, with details about adding code, use developer_guide.md. If you are using VSCode, using Cmd+Shift+V (or Ctrl+Shift+V on Windows) to preview the file in proper markdown.
 
 ## 1. Set up code
-First, clone this repository where you want to use it and open it in your text editor of choice. When 
+First, clone this repository where you want to use it and open it in your code editor of choice (VSCode is good). When 
 ```bash
 git clone https://github.com/vsomani-slac/SWAXS_data_reduction_correction_Analysis
 ```
@@ -20,11 +20,23 @@ pip install -r requirements.txt
 
 Basic demo example configured in demo/, with a built in config.yml file in this directory working. First, look through the demo directory to understand the proper file structure. Also, look through the config.yml file to see a simple configuration file.
 
- Run 
+To use the following script, run the following code:
 ```bash
 python main_correction_reduction_v1.py config.yml
 ```
-to use the demo with the configurations set up on config.yml. This demo has a worki
+main_correction_reduction_v1.py is the primary analysis script, which corrects and reduces data.
+config.yml is a YAML
 
 ## 3. Set up configuration YML file specific to this experiment
-Create a configuration file (similar template to config.yml) specific to a single experiment data round. Note: if you would like to
+Create a configuration file (similar template to config.yml) specific to a single experiment data round. 
+
+## Reformatting Directory Structure
+If you would like to migrate an old directory structure into a new directory structure, then 
+```bash
+python copy_data_structure.py -h
+```
+
+## Notes About File Information
+If you have an existing directory, then running this file will add
+
+If you have an existing analyzed data using the same script in the same 1D directory, running this code will overwrite your existing files. 

@@ -6,8 +6,6 @@ to larger_test/2D/ with flattened organization.
 Excludes: standard/, poni/, OneD_integrated* directories
 Copies: .raw, .pdi files from SAXS/ and WAXS/ subdirectories, and .csv files from experiment root
 """
-
-import os
 import shutil
 from pathlib import Path
 import argparse
@@ -219,11 +217,7 @@ def main():
                        help='Source directory')
     parser.add_argument('--target', required= True,
                        help='Target directory')
-    parser.add_argument('--dry-run', action='store_true',
-                       help='Show what would be copied without actually copying')
-    parser.add_argument('--verbose', action='store_true',
-                       help='Enable verbose logging')
-    
+
     args = parser.parse_args()
     
     # Setup logging

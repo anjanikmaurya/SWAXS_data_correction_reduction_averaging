@@ -1,5 +1,5 @@
 ---
-data_directory: "larger_test"
+data_directory: "./"
 # Poni directory should be within data directory
 poni_directory: "poni"
 poni_files:
@@ -40,5 +40,3 @@ beamline: ["1-5", "raw"]
 # Provide a different reading metadata function if not reading CSV or PDI
 # INPUT: raw data file path. Output: Tuple (i0, bstop, csv_dir). 
 read_metadata_function: null
-
-

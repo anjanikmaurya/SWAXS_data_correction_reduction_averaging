@@ -30,7 +30,6 @@ I should first complete the logic and then afterwards shard my directories.
 When completing the other logic, I should probably add it to another file
 """
 # TODO: 17-2: Look at how to add these into
-
 # TODO: Read CSVs. If multiple rows in CSV, then index of CSV corresponds to number after scan
 # TODO: Move reductions.log to poni directory
 # REVISIT: Logging file location
@@ -282,7 +281,6 @@ class Experiment:
                                      density=self.density_g_cm3) * 100  # Convert to 1/m
         
         # Calculate scattering length density (SLD) using periodictable
-        # REVISIT: Should I allow a configuration to allow user to directly compute SLD?
         material = pt.formula(self.compound) # pt library works properly even with red squiggle
         sld, mu_pt = pt.xray_sld(material, energy=self.energy_keV, density=self.density_g_cm3)
 
@@ -671,9 +669,12 @@ def add_metadata_to_dat(dat_file_path: Path, metadata_dict: dict):
     
     # Append metadata dictionary to the .dat file
     with open(dat_file_path, 'a') as f:
-        f.write("\n# METADATA INFORMATION FOR THIS FILE\n")
+        f.write("\n# METADATA INFORMATION (YML FORMAT)\n")
         
         for key, value in metadata_dict.items():
+            # Skip the empty key if it exists
+            if key == "#":
+                continue
             # Format the key-value pair as a comment
             f.write(f"# {key}: {value}\n")
         

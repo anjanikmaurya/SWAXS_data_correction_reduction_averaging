@@ -5,6 +5,7 @@ poni_files:
   saxs: "atT_SAXS.poni"
   waxs: "atT_WAXS.poni"
 # Null if you do not want to use mask correction
+# Mask files are assumed to be in the PONI directory
 mask_files:
   saxs: null
   waxs: null
