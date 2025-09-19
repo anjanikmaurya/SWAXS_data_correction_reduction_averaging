@@ -1,0 +1,29 @@
+# Relavant Info for Pilatus Scans
+
+# Diffractometer Motor Positions for image
+# Calculated Detector Calibration Parameters for image:
+# PD_X = 0.0001; PD_Y = 0; PD_DIST = 0 ; PD_ALPHA = 0 ; PD_DELTA = 0 ; LAMBDA = 1.03319
+# Initial Calibration Parameters:
+PDW_X_CALIB = ; PDW_Y_CALIB = ; PDW_DIST_CALIB =  ; PDW_ALPHA_CALIB =  ; PDW_DELTA_CALIB =  ; LAMBDAW_CALIB = 
+# Diffractometer Motor Positions for Initial Calibration:
+PDW_TTH_CALIB =  ; PDW_GAM_CALIB =  ; PDW_CHI_CALIB = 
+# Direct Beam Pixel at TTH/DEL = 0 and GAM/NU = 0:
+PDW_X_0 =  ; PDW_Y_0 =  
+
+# Regions of interest
+ROIW_1_X1=0; ROIW_1_Y1=0; ROIW_1_X2=0; ROIW_1_Y2=0;
+ROIW_2_X1=0; ROIW_2_Y1=0; ROIW_2_X2=0; ROIW_2_Y2=0;
+ROIW_3_X1=0; ROIW_3_Y1=0; ROIW_3_X2=0; ROIW_3_Y2=0;
+ROIW_4_X1=0; ROIW_4_Y1=0; ROIW_4_X2=0; ROIW_4_Y2=0;
+ROIW_5_X1=0; ROIW_5_Y1=0; ROIW_5_X2=0; ROIW_5_Y2=0;
+ROIW_6_X1=0; ROIW_6_Y1=0; ROIW_6_X2=0; ROIW_6_Y2=0;
+ROIW_7_X1=0; ROIW_7_Y1=0; ROIW_7_X2=0; ROIW_7_Y2=0;
+ROIW_8_X1=0; ROIW_8_Y1=0; ROIW_8_X2=0; ROIW_8_Y2=0;
+ROIW_9_X1=0; ROIW_9_Y1=0; ROIW_9_X2=0; ROIW_9_Y2=0;
+ROIW_10_X1=0; ROIW_10_Y1=0; ROIW_10_X2=0; ROIW_10_Y2=0;
+ROIW_11_X1=0; ROIW_11_Y1=0; ROIW_11_X2=0; ROIW_11_Y2=0;
+ROIW_12_X1=0; ROIW_12_Y1=0; ROIW_12_X2=0; ROIW_12_Y2=0;
+ROIW_13_X1=0; ROIW_13_Y1=0; ROIW_13_X2=0; ROIW_13_Y2=0;
+ROIW_14_X1=0; ROIW_14_Y1=0; ROIW_14_X2=0; ROIW_14_Y2=0;
+ROIW_15_X1=0; ROIW_15_Y1=0; ROIW_15_X2=0; ROIW_15_Y2=0;
+ROIW_16_X1=0; ROIW_16_Y1=0; ROIW_16_X2=0; ROIW_16_Y2=0;

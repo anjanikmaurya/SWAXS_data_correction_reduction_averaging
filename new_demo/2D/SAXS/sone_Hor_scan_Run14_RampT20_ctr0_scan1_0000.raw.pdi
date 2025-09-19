@@ -1,0 +1,220 @@
+b_tassone
+Anjani/Autoxidation/Jan2025/atT/Hor_scan_Run14_RampT20_ctr0/Hor_scan_Run14_RampT20_ctr0
+
+# Relavant Info for Pilatus Scans
+
+# Diffractometer Motor Positions for image
+# Calculated Detector Calibration Parameters for image:
+# PD_X = 0.0001; PD_Y = 0; PD_DIST = 0 ; PD_ALPHA = 0 ; PD_DELTA = 0 ; LAMBDA = 1.03319
+# Initial Calibration Parameters:
+PD_X_CALIB = ; PD_Y_CALIB = ; PD_DIST_CALIB =  ; PD_ALPHA_CALIB =  ; PD_DELTA_CALIB =  ; LAMBDA_CALIB = 
+# Diffractometer Motor Positions for Initial Calibration:
+PD_TTH_CALIB =  ; PD_GAM_CALIB =  ; PD_CHI_CALIB = 
+# Direct Beam Pixel at TTH/DEL = 0 and GAM/NU = 0:
+PD_X_0 =  ; PD_Y_0 =  
+
+# Regions of interest
+ROI_1_X1=0; ROI_1_Y1=0; ROI_1_X2=0; ROI_1_Y2=0;
+ROI_2_X1=0; ROI_2_Y1=0; ROI_2_X2=0; ROI_2_Y2=0;
+ROI_3_X1=0; ROI_3_Y1=0; ROI_3_X2=0; ROI_3_Y2=0;
+ROI_4_X1=0; ROI_4_Y1=0; ROI_4_X2=0; ROI_4_Y2=0;
+ROI_5_X1=0; ROI_5_Y1=0; ROI_5_X2=0; ROI_5_Y2=0;
+ROI_6_X1=0; ROI_6_Y1=0; ROI_6_X2=0; ROI_6_Y2=0;
+ROI_7_X1=0; ROI_7_Y1=0; ROI_7_X2=0; ROI_7_Y2=0;
+ROI_8_X1=0; ROI_8_Y1=0; ROI_8_X2=0; ROI_8_Y2=0;
+ROI_9_X1=0; ROI_9_Y1=0; ROI_9_X2=0; ROI_9_Y2=0;
+ROI_10_X1=0; ROI_10_Y1=0; ROI_10_X2=0; ROI_10_Y2=0;
+ROI_11_X1=0; ROI_11_Y1=0; ROI_11_X2=0; ROI_11_Y2=0;
+ROI_12_X1=0; ROI_12_Y1=0; ROI_12_X2=0; ROI_12_Y2=0;
+ROI_13_X1=0; ROI_13_Y1=0; ROI_13_X2=0; ROI_13_Y2=0;
+ROI_14_X1=0; ROI_14_Y1=0; ROI_14_X2=0; ROI_14_Y2=0;
+ROI_15_X1=0; ROI_15_Y1=0; ROI_15_X2=0; ROI_15_Y2=0;
+ROI_16_X1=0; ROI_16_Y1=0; ROI_16_X2=0; ROI_16_Y2=0;
+
+# All Counters
+     Seconds = 30
+          i0 = 62.4359
+          i1 = 0.8334
+         mon = 30.0449
+       bstop = 43.7729
+   Pyrometer = 0
+     MPF Top = 0
+  MPF Bottom = 0
+        TEMP = -1
+      marccd = 0
+       ICRxT = 0
+       OCRxT = 0
+        ROI1 = 0
+        ROI2 = 0
+        ROI3 = 0
+        ROI4 = 0
+        ROI5 = 0
+        ROI6 = 0
+        ROI7 = 0
+        ROI8 = 0
+        ROI9 = 0
+       ROI10 = 0
+       RIO11 = 0
+       ROI12 = 0
+       ROI13 = 0
+         SWX = 0
+        CCD1 = 0
+       CTEMP = 24.3767
+       Timer = 231147
+         pd1 = 2
+         pd2 = 2
+         pd3 = 2
+         pd4 = 2
+         pd5 = 2
+         pd6 = 2
+         pd7 = 2
+         pd8 = 2
+         pd9 = 2
+        pd10 = 2
+        pd11 = 2
+        pd12 = 2
+        pd13 = 2
+        pd14 = 2
+        pd15 = 2
+        pd16 = 2
+       PRESS = 0
+      lvdt11 = 0
+      lvdt12 = 0
+      lvdt21 = 0
+      lvdt22 = 0
+      lvdt31 = 0
+      lvdt32 = 0
+      lvdt41 = 0
+      lvdt42 = 0
+      CTEMPB = 0
+     X3_ROI1 = 0
+     X3_ROI2 = 0
+     X3_ROI3 = 0
+     X3_ROI4 = 0
+     X3_ROI5 = 0
+     X3_ROI6 = 0
+     X3_ROI7 = 0
+     X3_ROI8 = 0
+        pdw1 = 372
+        pdw2 = 372
+        pdw3 = 372
+        pdw4 = 372
+        pdw5 = 372
+        pdw6 = 372
+        pdw7 = 372
+        pdw8 = 372
+        pdw9 = 372
+       pdw10 = 372
+       pdw11 = 372
+       pdw12 = 372
+       pdw13 = 372
+       pdw14 = 372
+       pdw15 = 372
+       pdw16 = 372
+
+# All Motors
+     tabl2v1 = -0.395752
+     tabl2v2 = 0.595752
+      tabl2h = 0.3
+      tabl2a = -3.42
+        detx = 44.4279
+        dety = 110.874
+        detz = 20
+      tabl2z = -146
+         s20 = 0
+      bsvert = 0
+         s22 = 0
+         s23 = 0
+     syring1 = 0
+     syring2 = 0
+         s26 = 0
+         s27 = 0
+        m0v1 = -0.461904
+        m0v2 = 3.75377
+        m0h1 = 6.48221
+        m0h2 = 9.79445
+      empty7 = 0
+     monopit = -8127
+     monorol = 0
+     crystal = 9.48276
+     monvtra = -0.300038
+     monvgap = 1.49969
+     monhtra = 0
+     monhgap = 2.00048
+       tablh = 1.67676e-07
+       tablv = -2.14961e-06
+        bcuh = -4.00813e-08
+        bcuv = 0
+      m0bend = 6.1
+       detth = 0
+       bcu2h = 1.86061e-07
+       bcu2v = 0
+         s54 = 1.00014
+         s55 = 11.7728
+         s56 = 2.99982
+         s57 = 49.0003
+         t0v = 0.16
+         b0v = 0.11
+         l0h = 0.17
+         r0h = 0.37
+         s64 = 0
+         s65 = 0
+         s66 = 0
+         s67 = 0
+         v1g = 0.5
+         v1t = 4.14634e-08
+         h1g = 0.47002
+         h1t = 1.62602e-08
+         v2g = 0.299797
+         v2t = -6.50407e-09
+         h2g = 0.381098
+         h2t = 4.55285e-08
+          th = 0.149904
+          gx = 8
+          gy = -3.37475e-09
+          gz = 2.46339e-07
+        gphi = 0
+        gchi = -1.02906
+         bsx = 1.37733e-07
+         bsy = 4.56017e-07
+         s90 = 0
+         s91 = 0
+         s92 = 0
+         s93 = 0
+         s94 = 0.449878
+         s95 = 0.355184
+         s96 = 0.650173
+         s97 = -0.453994
+       PICO1 = -3677.57
+       PICO2 = -843.865
+       PICO3 = -114.01
+         lpx = -13.88
+         lpy = 47.6
+         spx = 206
+         spy = 5.70363e-05
+        spth = 0
+        cjtX = -7.815
+        cjtY = 250
+        cjtZ = 55
+       takSX = -304.8
+       takSY = 0
+       takSZ = 177.8
+       cjtTh = -9.1096
+      cjtChi = 0
+      cjtPhi = 0
+        mono = 12000.2
+m0_vert_trans = 1.7
+    m0_pitch = 4.6995
+     m0_horz = 8.078
+      m0_yaw = 3.7555
+         v0g = 0.27
+         v0t = 0.025
+         h0g = 0.54
+         h0t = -0.1
+      tabl2v = 0.1
+      tabl2p = 0.637
+     cryocon = -1
+     tempset = 127.7
+
+#
+1737121660.5404880047
