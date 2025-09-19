@@ -44,6 +44,7 @@ import logging
 import argparse
 
 import process_metadata
+import read_raw_file
 
 
 # Logging will be configured after loading config in Experiment.__init__
@@ -203,45 +204,6 @@ class Experiment:
             self._load_saxs_integrator()
             self._load_waxs_integrator()
 
-
-    def read_raw_detector_15_image(self, raw_file_path: Path, detector_type: str) -> np.ndarray:
-        """
-        Read raw detector file and return detector image array.
-        
-        Parameters
-        ----------
-        raw_file_path Path to the .raw detector file
-        detector_type : Type of detector ('SAXS' or 'WAXS')
-            
-        Returns
-        -------
-        np.ndarray
-            Detector image array with proper shape
-        """
-        # Log function call for first runs only
-        if self._log_pending:
-            logger.info(f"Called read_raw_detector_15_image() for {detector_type} detector")
-        
-        if detector_type.upper() == 'SAXS':
-            shape = tuple(self.detector_shapes['saxs'])
-        elif detector_type.upper() == 'WAXS':
-            shape = tuple(self.detector_shapes['waxs'])
-
-        data = np.fromfile(str(raw_file_path), dtype=np.int32).reshape(shape)
-
-        
-        if not raw_file_path.exists():
-            raise FileNotFoundError(f"Raw detector file not found: {raw_file_path}")
-        
-        data = np.fromfile(str(raw_file_path), dtype=np.int32).reshape(shape)
-        
-        # Log data information for first runs only
-        if self._log_pending:
-            logger.info(f"  Raw data loaded: shape {data.shape}, dtype {data.dtype}")
-            logger.info(f"  Data range: min={data.min()}, max={data.max()}, mean={data.mean():.2f}")
-        
-        return data
-
     def calculate_sld_mu_thickness(self, transmission: float) -> Dict[str, float]:
         """
         Calculate material properties from transmission using experiment parameters.
@@ -313,23 +275,15 @@ class Experiment:
         return output_dir
 
 
-    def get_corrections_full(self, raw_file_path: Path, detector_type: str):
+    def get_corrections_full(self, raw_file_path: Path, metadata_dict, detector_type: str):
         """Processed metadata file and computes correction factors"""
         # Log function call for first runs only
         if self._log_pending:
-            logger.info(f"Called get_corrections_full() for {detector_type} detector with file path: {raw_file_path}")
+            logger.info(f"Called get_corrections_full() with file path: {raw_file_path}")
         
         # Use specified metadata function from utils if available, otherwise use CSV processing
             # Using current PDI metadata processing
-        if self.metadata_format == "csv":
-            metadata_dict = process_metadata.process_csv_metadata(raw_file_path)
-        elif self.metadata_format == "pdi":
-            # TODO
-            metadata_dict = process_metadata.process_csv_metadata(raw_file_path)
 
-        else:
-            raise RuntimeError(f"Metadata format {self.metadata_format} not supported. Needs to be csv.")
-        
         i0 = metadata_dict['i0']
         bstop = metadata_dict['bstop']
         if self._log_pending:
@@ -377,7 +331,43 @@ class Experiment:
             'normalization_factor': normalization_factor,
             'metadata_dict': metadata_dict
         }
+    def read_raw_detector_15_image(self, raw_file_path: Path, detector_type: str) -> np.ndarray:
+        """
+        Read raw detector file and return detector image array.
         
+        Parameters
+        ----------
+        raw_file_path Path to the .raw detector file
+        detector_type : Type of detector ('SAXS' or 'WAXS')
+            
+        Returns
+        -------
+        np.ndarray
+            Detector image array with proper shape
+        """
+        # Log function call for first runs only
+        if self._log_pending:
+            logger.info(f"Called read_raw_detector_15_image() for {detector_type} detector")
+        
+        if detector_type.upper() == 'SAXS':
+            shape = tuple(self.detector_shapes['saxs'])
+        elif detector_type.upper() == 'WAXS':
+            shape = tuple(self.detector_shapes['waxs'])
+
+        data = np.fromfile(str(raw_file_path), dtype=np.int32).reshape(shape)
+
+        
+        if not raw_file_path.exists():
+            raise FileNotFoundError(f"Raw detector file not found: {raw_file_path}")
+        
+        data = np.fromfile(str(raw_file_path), dtype=np.int32).reshape(shape)
+        
+        # Log data information for first runs only
+        if self._log_pending:
+            logger.info(f"  Raw data loaded: shape {data.shape}, dtype {data.dtype}")
+            logger.info(f"  Data range: min={data.min()}, max={data.max()}, mean={data.mean():.2f}")
+        
+        return data
     def process_saxs_file(self, raw_file_path: Path):
         """
         Process a single SAXS .raw file with corrections and 1D integration.
@@ -404,9 +394,16 @@ class Experiment:
             logger.info("")
         
         # Read raw detector data
-        detector_data = self.read_raw_detector_15_image(raw_file_path, 'SAXS')
+        detector_data = read_raw_file.read_raw_detector_15_image(raw_file_path, self.detector_shapes['saxs'], self._log_pending)
+        if self.metadata_format == "csv":
+            metadata_dict = process_metadata.process_csv_metadata(raw_file_path)
+        elif self.metadata_format == "pdi":
+            # TODO
+            metadata_dict = process_metadata.process_pdi_full(raw_file_path, 'SAXS')
+        else:
+            raise RuntimeError(f"Metadata format {self.metadata_format} not supported. Needs to be csv.")
         
-        corrections = self.get_corrections_full(raw_file_path, "SAXS")
+        corrections = self.get_corrections_full(raw_file_path, metadata_dict, "SAXS")
         
         # Log corrections for first file only
         if self._log_pending:
@@ -469,7 +466,15 @@ class Experiment:
             logger.info("")
         
         detector_data = self.read_raw_detector_15_image(raw_file_path, 'WAXS')
-        corrections = self.get_corrections_full(raw_file_path, "WAXS")
+        if self.metadata_format == "csv":
+            metadata_dict = process_metadata.process_csv_metadata(raw_file_path)
+        elif self.metadata_format == "pdi":
+            # TODO
+            metadata_dict = process_metadata.process_pdi_full(raw_file_path, 'WAXS')
+        else:
+            raise RuntimeError(f"Metadata format {self.metadata_format} not supported. Needs to be csv.")
+        
+        corrections = self.get_corrections_full(raw_file_path, metadata_dict, "WAXS")
 
         # Log corrections for first file only
         if self._log_pending:

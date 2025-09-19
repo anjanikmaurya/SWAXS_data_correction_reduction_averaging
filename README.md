@@ -2,8 +2,9 @@
 
 This is a user-guide to use this repository, with detailed steps about how to use it. For a developer-guide, with details about adding code, use developer_guide.md. If you are using VSCode, using Cmd+Shift+V (or Ctrl+Shift+V on Windows) to preview the file in proper markdown.
 
+REVISIT: How vscode specific should I be? I want to suggest cloning the repo using vscode's built-in repo clone
 ## 1. Set up code
-First, clone this repository where you want to use it and open it in your code editor of choice (VSCode is good). When 
+First, clone this repository where you want to use it and open it in your code editor of choice. When 
 ```bash
 git clone https://github.com/vsomani-slac/SWAXS_data_reduction_correction_Analysis
 ```
@@ -22,10 +23,10 @@ Basic demo example configured in demo/, with a built in config.yml file in this 
 
 To use the following script, run the following code:
 ```bash
-python main_correction_reduction_v1.py config.yml
+python src/main_correction_reduction_v1.py demo/config.yml
 ```
-main_correction_reduction_v1.py is the primary analysis script, which corrects and reduces data.
-config.yml is a YAML
+src/main_correction_reduction_v1.py is the primary analysis script, which corrects and reduces data.
+demo/config.yml is a YML configuration file
 
 ## 3. Set up configuration YML file specific to this experiment
 Create a configuration file (similar template to config.yml) specific to a single experiment data round. 
