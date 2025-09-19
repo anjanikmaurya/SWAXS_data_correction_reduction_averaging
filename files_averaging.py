@@ -8,58 +8,89 @@ from pathlib import Path
 import numpy as np
 import fnmatch
 
+# Global constant for metadata section identifier
+METADATA_SECTION_IDENTIFIER = "# METADATA INFORMATION (YML FORMAT)"
+
 def group_files_by_fnmatch_patterns(file_list: list[Path], pattern_groups: list) -> dict:
     """
     Groups files based on fnmatch pattern groups (similar to Step1 notebook approach)
     Input: file_list: List of file paths
            pattern_groups: List of pattern lists (e.g., [["*Run6*RampT*"], ["*Run7*RampT*"]]).
            Each pattern corresponds to a single group
-    Output: Dictionary mapping group names to list of file paths
+    Output: Dictionary mapping base filenames to list of file paths
     """
     groups = {}
     matched_files = set()  # Track which files have been matched to avoid duplicates
-    
-    for i, pattern_group in enumerate(pattern_groups):
+
+    for pattern_group in enumerate(pattern_groups):
         group_files = []
-        
+
         # For each pattern in the group, find matching files
-        for pattern in pattern_group:
+        for pattern in pattern_group[1]:  # pattern_group is (index, patterns_list)
             for file_path in file_list:
                 if file_path not in matched_files and fnmatch.fnmatch(file_path.name, pattern):
                     group_files.append(file_path)
                     matched_files.add(file_path)
-        
+
         # Only create a group if files were found
         if group_files:
-            # Create a meaningful group name from the patterns
-            group_name = "_".join(pattern_group).replace("*", "X").replace("[", "").replace("]", "")
+            # Use base filename from first file (without extension) as group name
+            first_file = group_files[0]
+            group_name = first_file.stem  # Gets filename without extension
             groups[group_name] = group_files
         else:
-            print(f"Warning: group {group_name} did not match any patterns:")
+            print(f"Warning: group {pattern_group} did not match any patterns:")
+
     unmatched_files = [f for f in file_list if f not in matched_files]
     if unmatched_files:
         print(f"{len(unmatched_files)} files did not match any patterns:")
-            
+
     return groups
 
 
-def read_dat_file(file_path: Path) -> tuple:
+def read_dat_data_metadata(file_path: Path) -> tuple:
     """
-    Reads a .dat file and extracts header comments and data
-    Returns: (header_lines, q_values, intensity_values, sigma_values)
+    Reads a .dat file and extracts header comments, data, and metadata
+    Returns: (header_lines, q_values, intensity_values, sigma_values, metadata_dict)
     """
     header_lines = []
     data_lines = []
-    
+    metadata_dict = {}
+    in_metadata_section = False
+
     with open(file_path, 'r') as f:
         for line in f:
             if line.startswith('#'):
-                header_lines.append(line.strip())
+                line_stripped = line.strip()
+
+                # Check if we're entering the metadata section
+                if line_stripped == METADATA_SECTION_IDENTIFIER:
+                    in_metadata_section = True
+                    continue
+
+                # If we're in metadata section, parse the metadata
+                if in_metadata_section:
+                    # Parse YML format: # key: value
+                    if ':' in line_stripped:
+                        key_value = line_stripped[1:].strip()  # Remove the '#'
+                        if ':' in key_value:
+                            key, value = key_value.split(':', 1)
+                            key = key.strip()
+                            value = value.strip()
+                            try:
+                                # Convert to float as specified
+                                metadata_dict[key] = float(value)
+                            except ValueError:
+                                # If conversion fails, skip this metadata entry
+                                continue
+                else:
+                    # Regular header line (not metadata)
+                    header_lines.append(line_stripped)
             else:
                 # Skip empty lines
                 if line.strip():
                     data_lines.append(line.strip())
-    
+
     # Parse data (skip the column header line if it exists in data_lines)
     data_arrays = []
     for line in data_lines:
@@ -72,67 +103,96 @@ def read_dat_file(file_path: Path) -> tuple:
                 data_arrays.append(values)
         except ValueError:
             continue  # Skip malformed lines
-    
+
     if not data_arrays:
         raise ValueError(f"No valid data found in {file_path}")
-    
+
     data_arrays = np.array(data_arrays)
     q_values = data_arrays[:, 0]
     intensity_values = data_arrays[:, 1]
     sigma_values = data_arrays[:, 2]
-    
-    return header_lines, q_values, intensity_values, sigma_values
+
+    return header_lines, q_values, intensity_values, sigma_values, metadata_dict
 
 
 def average_dat_files(file_paths: list) -> tuple:
     """
     Averages multiple .dat files using simple column averaging
     Input: List of .dat file paths to average
-    Output: (header_lines, avg_q, avg_intensity, avg_sigma)
+    Output: (header_lines, avg_q, avg_intensity, avg_sigma, averaged_metadata)
     """
     if not file_paths:
         raise ValueError("No files to average")
-    
-    # Use header from first file
-    header_lines, first_q, first_intensity, first_sigma = read_dat_file(file_paths[0])
-    
+
+    # Use header from first file and collect metadata
+    header_lines, first_q, first_intensity, first_sigma, first_metadata = read_dat_data_metadata(file_paths[0])
+
     # Initialize arrays for averaging
     all_q = [first_q]
     all_intensity = [first_intensity]
     all_sigma = [first_sigma]
-    
+    all_metadata = [first_metadata]
+
     # Read remaining files
     for file_path in file_paths[1:]:
-        _, q_vals, intensity_vals, sigma_vals = read_dat_file(file_path)
+        _, q_vals, intensity_vals, sigma_vals, metadata = read_dat_data_metadata(file_path)
         all_q.append(q_vals)
         all_intensity.append(intensity_vals)
         all_sigma.append(sigma_vals)
-    
-    # Convert to numpy arrays and average
+        all_metadata.append(metadata)
+
+    # Convert to numpy arrays and average data
     all_q = np.array(all_q)
     all_intensity = np.array(all_intensity)
     all_sigma = np.array(all_sigma)
-    
+
     # Simple averaging across files (axis=0)
     avg_q = np.mean(all_q, axis=0)
-    avg_intensity = np.mean(all_intensity, axis=0) 
+    avg_intensity = np.mean(all_intensity, axis=0)
     avg_sigma = np.mean(all_sigma, axis=0)
-    
-    return header_lines, avg_q, avg_intensity, avg_sigma
+
+    # Average metadata
+    averaged_metadata = {}
+    if all_metadata:
+        # Get all unique keys from all metadata dictionaries
+        all_keys = set()
+        for metadata in all_metadata:
+            all_keys.update(metadata.keys())
+
+        # Average each key across all files
+        for key in all_keys:
+            values = []
+            for metadata in all_metadata:
+                if key in metadata:
+                    values.append(metadata[key])
+                else:
+                    # Throw error if any file is missing metadata after averaging
+                    raise ValueError(f"Metadata key '{key}' missing from file {file_paths[all_metadata.index(metadata)]}")
+
+            if values:
+                averaged_metadata[key] = np.mean(values)
+
+    return header_lines, avg_q, avg_intensity, avg_sigma, averaged_metadata
 
 
-def save_averaged_data(header_lines: list, q, intensity, sigma, output_path: Path):
+def save_averaged_data(header_lines: list, q, intensity, sigma, averaged_metadata: dict, output_path: Path):
     """
-    Saves averaged data in .dat format with original header
+    Saves averaged data in .dat format with original header and averaged metadata
     """
     with open(output_path, 'w') as f:
         # Write header comments from first file
         for line in header_lines:
             f.write(f"{line}\n")
-                
+
         # Write data
         for i in range(len(q)):
             f.write(f"  {q[i]:e}    {intensity[i]:e}   {sigma[i]:e}\n")
+
+        # Write averaged metadata section
+        if averaged_metadata:
+            f.write("# METADATA INFORMATION (YML FORMAT, AVERAGED)\n")
+            for key, value in averaged_metadata.items():
+                f.write(f"# {key}: {value}\n")
 
 
 def average_files_in_directory(input_dir: Path, detector_type: str, pattern_groups: list):
@@ -159,17 +219,17 @@ def average_files_in_directory(input_dir: Path, detector_type: str, pattern_grou
     # Process each group
     for group_key, files_in_group in file_groups.items():
         print(f"  Averaging {len(files_in_group)} files for pattern: {group_key}")
-        
+
         # Average the files
-        header_lines, avg_q, avg_intensity, avg_sigma = average_dat_files(files_in_group)
-        
-        # Create output filename
-        output_filename = f"{group_key}_{detector_type}_averaged.dat"
+        header_lines, avg_q, avg_intensity, avg_sigma, averaged_metadata = average_dat_files(files_in_group)
+
+        # Create output filename using base filename + "_Averaged"
+        output_filename = f"{group_key}_Averaged.dat"
         output_path = output_dir / output_filename
-        
+
         # Save averaged data
-        save_averaged_data(header_lines, avg_q, avg_intensity, avg_sigma, output_path)
-        
+        save_averaged_data(header_lines, avg_q, avg_intensity, avg_sigma, averaged_metadata, output_path)
+
         print(f"    Saved: {output_path}")
             
 def process_directory(base_dir: Path):
