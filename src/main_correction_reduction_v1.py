@@ -31,6 +31,8 @@ When completing the other logic, I should probably add it to another file
 """
 # TODO: 17-2: Look at how to add these into
 # TODO: Move reductions.log to poni directory
+
+# TODO: Handle outer directory not being a 2D/ directory, but different name. Assume SAXS and WAXS are the same
 import glob
 import numpy as np
 import yaml

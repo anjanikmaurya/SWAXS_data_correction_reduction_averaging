@@ -1,7 +1,7 @@
 ---
-data_directory: "larger_test"
+data_directory: "larger_test/2D"
 # Poni directory should be within data directory
-poni_directory: "poni"
+poni_directory: "../poni"
 poni_files:
   saxs: "atT_SAXS.poni"
   waxs: "atT_WAXS.poni"
