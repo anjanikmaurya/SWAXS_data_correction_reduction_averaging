@@ -30,9 +30,7 @@ I should first complete the logic and then afterwards shard my directories.
 When completing the other logic, I should probably add it to another file
 """
 # TODO: 17-2: Look at how to add these into
-# TODO: Read CSVs. If multiple rows in CSV, then index of CSV corresponds to number after scan
 # TODO: Move reductions.log to poni directory
-# REVISIT: Logging file location
 import glob
 import numpy as np
 import yaml
@@ -45,10 +43,7 @@ from pathlib import Path
 import logging
 import argparse
 
-# Importing files
-import utils
-import process_pdi_metadata
-import process_csv_metadata
+import process_metadata
 
 
 # Logging will be configured after loading config in Experiment.__init__
@@ -80,14 +75,7 @@ class Experiment:
     poni_path: Path # Path to poni directory
     _log_pending: bool # Specifies if the first-run log is currently pending
 
-    """
-    SWAXS Experiment class for managing configuration and data processing.
-    
-    Loads experimental parameters from config.yml and provides methods for
-    processing SAXS/WAXS data with proper corrections and normalization.
-    """
-    
-    def __init__(self, config_path: str = "config.yml"):
+    def __init__(self, config_path: str):
         """
         Initialize Experiment with configuration from YAML file.
         
@@ -203,7 +191,7 @@ class Experiment:
         """Load PyFAI integrator objects based on processing mode."""
         
         if self.mode not in ['SAXS', 'WAXS', 'SWAXS']:
-            raise ValueError(f"Invalid mode '{self.mode}'. Must be 'SAXS', 'WAXS', or 'SWAXS'")
+            raise ValueError(f"Invalid mode '{self.mode}' in configuration file. Must be 'SAXS', 'WAXS', or 'SWAXS'")
 
         if self.mode == 'WAXS':
             self._load_waxs_integrator()
@@ -332,17 +320,15 @@ class Experiment:
             logger.info(f"Called get_corrections_full() for {detector_type} detector with file path: {raw_file_path}")
         
         # Use specified metadata function from utils if available, otherwise use CSV processing
-        if self.read_metadata_function is not None and hasattr(utils, self.read_metadata_function):
-            metadata_function = getattr(utils, self.read_metadata_function)
-            metadata_dict = metadata_function(raw_file_path)
-        else:
             # Using current PDI metadata processing
-            if self.metadata_format == "csv":
-                metadata_dict = process_csv_metadata.process_csv_metadata(raw_file_path)
-            # elif self.metadata_format == "pdi":
-            #     i0, bstop, metadata_path = process_pdi_metadata.process_pdi_full(raw_file_path, detector_type)
-            else:
-                raise RuntimeError(f"Metadata format {self.metadata_format} not supported. Needs to be csv.")
+        if self.metadata_format == "csv":
+            metadata_dict = process_metadata.process_csv_metadata(raw_file_path)
+        elif self.metadata_format == "pdi":
+            # TODO
+            metadata_dict = process_metadata.process_csv_metadata(raw_file_path)
+
+        else:
+            raise RuntimeError(f"Metadata format {self.metadata_format} not supported. Needs to be csv.")
         
         i0 = metadata_dict['i0']
         bstop = metadata_dict['bstop']
@@ -352,7 +338,9 @@ class Experiment:
         # Calculate correction factors
         transmission_factor_raw = bstop
         transmission_ratio = bstop / i0
-        
+        i0_corrected = i0 - self.i0_offset
+        bstop_corrected = bstop - self.bstop_offset
+
         # Log transmission calculations for first runs only
         if self._log_pending:
             logger.info(f"  Calculating transmission: ratio = {transmission_ratio:.6f}")
@@ -378,12 +366,11 @@ class Experiment:
                 logger.info(f"  Using provided thickness: {thickness:.6f} m")
         
         # Calculate normalization factor: trans_factor * i0_corrected
-        # Based on Step1 notebook: normfactor = trans_factor*i0_avg_all[0]
         normalization_factor = transmission_factor_raw * i0
         
         return {
-            'i0_corrected': i0,
-            'bstop_corrected': bstop,
+            'i0_corrected': i0_corrected,
+            'bstop_corrected': bstop_corrected,
             'transmission_factor': transmission_factor_raw,
             'transmission_ratio': transmission_ratio,
             'thickness': thickness,

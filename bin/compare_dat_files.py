@@ -1,6 +1,7 @@
 import numpy as np
 import os
 
+# This file compares the data values within two dat files and sees if they are equal, within a tolerance.
 def write_comparison_results(file1_path, file2_path, diff, output_file):
     """
     Write comparison results to a file.
