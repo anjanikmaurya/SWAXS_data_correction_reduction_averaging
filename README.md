@@ -9,11 +9,13 @@ On the home screen
 ```bash
 git clone https://github.com/anjanikmaurya/SWAXS_data_correction_reduction_averaging
 ```
-Then, it is highly recommended to create a virtual environment for this project and activate it. You can use a different package manager if you would like. This is the workflow of creating a pip venv virtual environment called .venv in this directory:
+Then, it is highly recommended to create a virtual environment for this project, but you may skip this step and the next . Right now, this is using pip and venv, but you can use a different package manager if you would like. 
+
+Create this virtual 
 ```bash
 python -m venv .venv  
 ```
-
+Activate the virtual environment
 ```bash
 source .venv/bin/activate
 ```
