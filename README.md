@@ -3,7 +3,9 @@
 This is a user-guide to use this repository, with detailed steps about how to use it. For a developer-guide, with details about adding code, use developer_guide.md. If you are using VSCode, using Cmd+Shift+V (or Ctrl+Shift+V on Windows) to preview the file in proper markdown.
 
 ## 1. Set up code
-First, clone this repository where you want to use it and open it in your code editor of choice. When 
+First, clone the repository.
+Option 1: Cloning with Visual Studio Code (recommended if using vscode):
+On the home screen 
 ```bash
 git clone https://github.com/anjanikmaurya/SWAXS_data_correction_reduction_averaging
 ```
