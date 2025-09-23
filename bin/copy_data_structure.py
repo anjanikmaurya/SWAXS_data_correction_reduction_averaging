@@ -224,9 +224,6 @@ def main():
     setup_logging()
     logger = logging.getLogger(__name__)
     
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-        
     # Convert to Path objects
     source_dir = Path(args.source)
     target_dir = Path(args.target)
@@ -238,9 +235,6 @@ def main():
         
     logger.info(f"Source directory: {source_dir.absolute()}")
     logger.info(f"Target directory: {target_dir.absolute()}")
-    
-    if args.dry_run:
-        logger.info("DRY RUN MODE - No files will be copied")
     
     # Perform the copy operation
     try:
