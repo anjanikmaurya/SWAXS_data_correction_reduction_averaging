@@ -5,7 +5,7 @@ This is a user-guide to use this repository, with detailed steps about how to us
 ## 1. Set up code
 First, clone this repository where you want to use it and open it in your code editor of choice. When 
 ```bash
-git clone https://github.com/vsomani-slac/SWAXS_data_reduction_correction_Analysis
+git clone https://github.com/anjanikmaurya/SWAXS_data_correction_reduction_averaging
 ```
 Then, it is highly recommended to create a virtual environment for this project and activate it. You can use a different package manager if you would like. This is the workflow of creating a pip venv virtual environment called .venv in this directory:
 ```bash

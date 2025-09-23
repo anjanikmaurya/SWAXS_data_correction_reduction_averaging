@@ -1,6 +1,7 @@
 ---
-# NOTE: If you use relative paths will be relative to the directory in the terminal where you run the code from
-# To avoid this confusion, absolute paths are generally recommended
+# WARNING: If you use relative paths will be relative to the directory in the terminal where you run the code from, which may change
+# For the demo, run the code while the main swaxs_data_reduction directory since relative paths are used. This will change
+# To avoid this confusion, absolute paths (starts with /) are generally recommended after completing the demo.
 data_directory: "new_demo/2D"
 poni_directory: "new_demo/poni"
 # Specify PONI files and mask files within poni directory above. Do not give an absolute path.
