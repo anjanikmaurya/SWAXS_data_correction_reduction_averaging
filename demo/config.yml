@@ -1,4 +1,10 @@
 ---
+# This is a sample configuration file used to set up configurations for demo. You will need to make a copy of this configuration file
+# and change it as necessary. 
+# IMPORTANT: When editting this configuration file, make sure to keep all data types the same. For example, if a value is a string,
+# use a string. For some items, null values are usable.
+# You do not need prior experience with YML to modify this file, but a tutorial is stored here https://www.cloudbees.com/blog/yaml-tutorial-everything-you-need-get-started
+
 # WARNING: If you use relative paths will be relative to the directory in the terminal where you run the code from, which may change
 # For the demo, run the code while the main swaxs_data_reduction directory since relative paths are used. This will change
 # To avoid this confusion, absolute paths (starts with /) are generally recommended after completing the demo.
