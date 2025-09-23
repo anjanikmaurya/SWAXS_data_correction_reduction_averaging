@@ -43,7 +43,7 @@ Create a configuration file (similar template to config.yml) specific to a singl
 ## Reformatting Directory Structure
 If you would like to migrate an old directory structure into a new directory structure, then type:
 ```bash
-python copy_data_structure.py -h
+python src/copy_data_structure.py -h
 ```
 
 ## Notes About File Information
