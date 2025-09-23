@@ -45,27 +45,23 @@ def should_exclude_directory(dir_name):
             return True
     return False
 
-def copy_saxs_waxs_files(source_dir, target_dir, dry_run=False):
+def copy_saxs_waxs_files(source_dir, target_dir):
     """
     Copy SAXS and WAXS files from source directory structure to target
-    
+
     Args:
         source_dir (Path): Source directory (atT/)
         target_dir (Path): Target directory (larger_test/2D/)
-        dry_run (bool): If True, only show what would be copied
     """
     logger = logging.getLogger(__name__)
     
     # Create target directories
     saxs_target = target_dir / 'SAXS'
     waxs_target = target_dir / 'WAXS'
-    
-    if not dry_run:
-        saxs_target.mkdir(parents=True, exist_ok=True)
-        waxs_target.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Created target directories: {saxs_target}, {waxs_target}")
-    else:
-        logger.info(f"DRY RUN: Would create directories: {saxs_target}, {waxs_target}")
+
+    saxs_target.mkdir(parents=True, exist_ok=True)
+    waxs_target.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Created target directories: {saxs_target}, {waxs_target}")
     
     # Stats tracking
     stats = {
@@ -91,21 +87,21 @@ def copy_saxs_waxs_files(source_dir, target_dir, dry_run=False):
         stats['directories_processed'] += 1
         
         # Copy CSV files from experiment root directory
-        csv_files_copied = copy_csv_files(item, target_dir, dry_run)
+        csv_files_copied = copy_csv_files(item, target_dir)
         stats['saxs_files_copied'] += csv_files_copied  # Add to saxs count for summary
-        
+
         # Process SAXS subdirectory
         saxs_dir = item / 'SAXS'
         if saxs_dir.exists():
-            files_copied = copy_detector_files(saxs_dir, saxs_target, target_dir, 'SAXS', dry_run)
+            files_copied = copy_detector_files(saxs_dir, saxs_target, target_dir, 'SAXS')
             stats['saxs_files_copied'] += files_copied
         else:
             logger.warning(f"No SAXS directory found in {item.name}")
-            
-        # Process WAXS subdirectory  
+
+        # Process WAXS subdirectory
         waxs_dir = item / 'WAXS'
         if waxs_dir.exists():
-            files_copied = copy_detector_files(waxs_dir, waxs_target, target_dir, 'WAXS', dry_run)
+            files_copied = copy_detector_files(waxs_dir, waxs_target, target_dir, 'WAXS')
             stats['waxs_files_copied'] += files_copied
         else:
             logger.warning(f"No WAXS directory found in {item.name}")
@@ -122,15 +118,14 @@ def copy_saxs_waxs_files(source_dir, target_dir, dry_run=False):
     if stats['errors'] > 0:
         logger.error(f"Errors encountered: {stats['errors']}")
 
-def copy_csv_files(experiment_dir, target_dir, dry_run):
+def copy_csv_files(experiment_dir, target_dir):
     """
     Copy CSV files from experiment root directory to target 2D directory
-    
+
     Args:
         experiment_dir (Path): Source experiment directory
         target_dir (Path): Target 2D directory
-        dry_run (bool): If True, only show what would be copied
-        
+
     Returns:
         int: Number of CSV files copied
     """
@@ -148,13 +143,10 @@ def copy_csv_files(experiment_dir, target_dir, dry_run):
             continue
             
         try:
-            if not dry_run:
-                shutil.copy2(file_path, target_file)
-                logger.debug(f"Copied CSV to 2D/: {file_path.name}")
-            else:
-                logger.info(f"DRY RUN: Would copy CSV to 2D/: {file_path.name}")
+            shutil.copy2(file_path, target_file)
+            logger.debug(f"Copied CSV to 2D/: {file_path.name}")
             files_copied += 1
-            
+
         except Exception as e:
             logger.error(f"Failed to copy CSV {file_path}: {e}")
             
@@ -163,17 +155,16 @@ def copy_csv_files(experiment_dir, target_dir, dry_run):
         
     return files_copied
 
-def copy_detector_files(source_detector_dir, target_detector_dir, csv_target_dir, detector_type, dry_run):
+def copy_detector_files(source_detector_dir, target_detector_dir, csv_target_dir, detector_type):
     """
     Copy .raw and .pdi files from detector directory to target
-    
+
     Args:
         source_detector_dir (Path): Source SAXS or WAXS directory
         target_detector_dir (Path): Target SAXS or WAXS directory
         csv_target_dir (Path): Not used (kept for compatibility)
         detector_type (str): 'SAXS' or 'WAXS' for logging
-        dry_run (bool): If True, only show what would be copied
-        
+
     Returns:
         int: Number of files copied
     """
@@ -195,13 +186,10 @@ def copy_detector_files(source_detector_dir, target_detector_dir, csv_target_dir
             continue
             
         try:
-            if not dry_run:
-                shutil.copy2(file_path, target_file)
-                logger.debug(f"Copied {detector_type}: {file_path.name}")
-            else:
-                logger.info(f"DRY RUN: Would copy {detector_type}: {file_path.name}")
+            shutil.copy2(file_path, target_file)
+            logger.debug(f"Copied {detector_type}: {file_path.name}")
             files_copied += 1
-            
+
         except Exception as e:
             logger.error(f"Failed to copy {file_path}: {e}")
             
@@ -236,9 +224,10 @@ def main():
     logger.info(f"Source directory: {source_dir.absolute()}")
     logger.info(f"Target directory: {target_dir.absolute()}")
     
+
     # Perform the copy operation
     try:
-        copy_saxs_waxs_files(source_dir, target_dir, args.dry_run)
+        copy_saxs_waxs_files(source_dir, target_dir)
         logger.info("Copy operation completed successfully")
         return 0
     except Exception as e:
