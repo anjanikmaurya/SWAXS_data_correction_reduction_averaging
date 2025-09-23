@@ -13,6 +13,10 @@ Then, it is highly recommended to create a virtual environment for this project 
 ```bash
 python -m venv .venv  
 ```
+
+```bash
+source .venv/bin/activate
+```
 If it went correctly, you should now see the (.venv) on your terminal. Next, within your virtual environment itself (if you created one), perform this command to install all dependencies in this repository. This command takes a while to run
 ```bash
 pip install -r requirements.txt
