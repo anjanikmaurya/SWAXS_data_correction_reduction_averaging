@@ -2,7 +2,6 @@
 
 This is a user-guide to use this repository, with detailed steps about how to use it. For a developer-guide, with details about adding code, use developer_guide.md. If you are using VSCode, using Cmd+Shift+V (or Ctrl+Shift+V on Windows) to preview the file in proper markdown.
 
-REVISIT: How vscode specific should I be? I want to suggest cloning the repo using vscode's built-in repo clone
 ## 1. Set up code
 First, clone this repository where you want to use it and open it in your code editor of choice. When 
 ```bash
@@ -12,7 +11,7 @@ Then, it is highly recommended to create a virtual environment for this project 
 ```bash
 python -m venv .venv  
 ```
-If it went correctly, you should now see the (.venv) on your terminal. Next, within your virtual environment itself (if you created one), perform this pip install command. This command takes a while to run
+If it went correctly, you should now see the (.venv) on your terminal. Next, within your virtual environment itself (if you created one), perform this command to install all dependencies in this repository. This command takes a while to run
 ```bash
 pip install -r requirements.txt
 ```
@@ -26,13 +25,15 @@ To use the following script, run the following code:
 python src/main_correction_reduction_v1.py demo/config.yml
 ```
 src/main_correction_reduction_v1.py is the primary analysis script, which corrects and reduces data.
-demo/config.yml is a YML configuration file
+demo/config.yml is a YML configuration file for the demo structure
+
+After you run this, you should see a logging file get created and 
 
 ## 3. Set up configuration YML file specific to this experiment
 Create a configuration file (similar template to config.yml) specific to a single experiment data round. 
 
 ## Reformatting Directory Structure
-If you would like to migrate an old directory structure into a new directory structure, then 
+If you would like to migrate an old directory structure into a new directory structure, then type:
 ```bash
 python copy_data_structure.py -h
 ```

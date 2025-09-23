@@ -3,6 +3,7 @@ pyproject.toml
 .python-version
 uv.lock
 atT/
+demo/1D
 Hor_scan_Run4_RampT20_ctr0/
 atT_smaller/
 .DS_Store
@@ -10,4 +11,3 @@ __pycache__
 *_test/
 *.log
 TODO.md
-insitu_2025_BL15/

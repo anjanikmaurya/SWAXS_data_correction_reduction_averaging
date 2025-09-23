@@ -29,9 +29,7 @@ Logging rules:
 I should first complete the logic and then afterwards shard my directories.
 When completing the other logic, I should probably add it to another file
 """
-# TODO: 17-2: Look at how to add these into
 # TODO: Move reductions.log to poni directory
-
 # TODO: Handle outer directory not being a 2D/ directory, but different name. Assume SAXS and WAXS are the same
 import glob
 import numpy as np
@@ -47,7 +45,7 @@ import argparse
 
 import process_metadata
 import read_raw_file
-
+import os
 
 # Logging will be configured after loading config in Experiment.__init__
 logger = logging.getLogger('swaxs_pipeline')
@@ -102,13 +100,13 @@ class Experiment:
         self.data_directory = Path(config['data_directory'])
         del config['data_directory'] # Don't reread the data directory -- important to not store as a string
         if not self.data_directory.exists():
-            raise RuntimeError("Data Directory Not Found!")
+            raise RuntimeError(f"Data Directory Not Found!: {self.data_directory}")
         self._setup_logging()
         # Log all configuration information onc
         logger.info(f"Configuration file: {self.config_path}")
         logger.info("")
         
-        # Loop through all config keys and assign them as instance variables
+        # Loop through all config keysf and assign them as instance variables
         for key, value in config.items():
             setattr(self, key, value)
             # Log each configuration parameter
@@ -120,12 +118,13 @@ class Experiment:
                 logger.info(f"{key}: {value}")
             else:
                 logger.info(f"{key}: {value}")
+        self.poni_directory = Path(self.poni_directory)
         # Make mode upper-case (SAXS, SWAXS, WAXS) for case-insensitive string comparison
         self.mode = self.mode.upper()
         logger.info("")
         logger.info("=" * 60)
     def _setup_logging(self):
-        logging_path = self.data_directory / "reductions.log"
+        logging_path = self.data_directory.parent / "reductions.log"
         logging.basicConfig(filename = logging_path,
             filemode = "w", 
             level = logging.INFO,
@@ -139,14 +138,12 @@ class Experiment:
     
     def _setup_directories(self):
         """Setup computed directory paths."""
-        self.data_directory_2d = self.data_directory / "2D"
-        if not self.data_directory_2d.exists():
-            raise RuntimeError(f"No 2D Directory Found in {self.data_directory}. Please move your data to a 2D directory.")
-        self.poni_path = self.data_directory / self.poni_directory
+        if not self.data_directory.exists():
+            raise RuntimeError(f"Data Directory Not Found: {self.data_directory}")
         if not self.poni_directory:
             raise RuntimeError(f"PONI Directory not found: ")
 
-        self.output_directory_1d = Path(self.data_directory) / "1D"
+        self.output_directory_1d = self.data_directory.parent / "1D"
         self.output_directory_1d.mkdir(parents=True, exist_ok=True)
         
         self.saxs_subdir = "SAXS" 
@@ -154,7 +151,7 @@ class Experiment:
     
     def _load_saxs_integrator(self):
         """Load PyFAI integrator and mask for SAXS detector."""
-        self.saxs_poni_path = self.poni_path / self.poni_files['saxs']
+        self.saxs_poni_path = self.poni_directory / self.poni_files['saxs']
         
         if not self.saxs_poni_path.exists():
             raise FileNotFoundError(f"SAXS PONI file not found: {self.saxs_poni_path}")
@@ -164,7 +161,7 @@ class Experiment:
         
         # Load SAXS detector mask
         if self.mask_files['saxs'] is not None:
-            saxs_mask_path = self.poni_path / self.mask_files['saxs']
+            saxs_mask_path = self.poni_directory / self.mask_files['saxs']
             self.saxs_mask = fabio.open(str(saxs_mask_path)).data
             logger.info(f"Loaded SAXS mask from: {saxs_mask_path}")
         else:
@@ -173,7 +170,7 @@ class Experiment:
     
     def _load_waxs_integrator(self):
         """Load PyFAI integrator and mask for WAXS detector."""
-        self.waxs_poni_path = self.poni_path / self.poni_files['waxs']
+        self.waxs_poni_path = self.poni_directory / self.poni_files['waxs']
         
         if not self.waxs_poni_path.exists():
             raise FileNotFoundError(f"WAXS PONI file not found: {self.waxs_poni_path}")
@@ -183,7 +180,7 @@ class Experiment:
         
         # Load WAXS detector mask
         if self.mask_files['waxs'] is not None:
-            waxs_mask_path = self.poni_path / self.mask_files['waxs']
+            waxs_mask_path = self.poni_directory / self.mask_files['waxs']
             self.waxs_mask = fabio.open(str(waxs_mask_path)).data 
             logger.info(f"Loaded WAXS mask from: {waxs_mask_path}")
         else:
@@ -463,7 +460,7 @@ class Experiment:
             logger.info("=" * 60)
             logger.info(f"Raw file: {raw_file_path}")
             logger.info(f"WAXS PONI file: {self.waxs_poni_path}")
-            logger.info(f"WAXS mask file: {self.poni_path / self.mask_files['waxs'] if self.mask_files['waxs'] else 'None'}")
+            logger.info(f"WAXS mask file: {self.poni_directory / self.mask_files['waxs'] if self.mask_files['waxs'] else 'None'}")
             logger.info(f"Detector shape: {self.detector_shapes['waxs']}")
             logger.info("")
         
@@ -580,8 +577,8 @@ def full_correction_integration(config_file_path = 'config.yml', plotting=False)
     print()
     
     # Find all .raw files to process
-    logger.info(f"Calling find_all_raw_files(experiment, {experiment.data_directory_2d})")
-    saxs_files, waxs_files = find_all_raw_files(experiment, experiment.data_directory_2d)
+    logger.info(f"Calling find_all_raw_files(experiment, {experiment.data_directory})")
+    saxs_files, waxs_files = find_all_raw_files(experiment, experiment.data_directory)
     logger.info("")
     logger.info(f"Found {len(saxs_files)} SAXS files and {len(waxs_files)} WAXS files to process")
     logger.info("=" * 60)
@@ -681,5 +678,4 @@ def main():
     return full_correction_integration(config_file_path= config_filename, plotting=False)
 
 if __name__ == "__main__":
-
     main()

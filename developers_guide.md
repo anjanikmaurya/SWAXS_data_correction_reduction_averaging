@@ -20,4 +20,8 @@
 
 ## Model of How Code works
 
-REVISIT: How important is it to specify a particular python version?
+## Possible Issues
+If you get this kind of an error, this was caused by poni_directory not being a Path type.
+File "/Users/vsoma_ogh6dsk/Documents/SLAC/SWAXS_data_correction_reduction_averaging/src/main_correction_reduction_v1.py", line 154, in _load_saxs_integrator
+    self.saxs_poni_path = self.poni_directory / self.poni_files['saxs']
+TypeError: unsupported operand type(s) for /: 'str' and 'str'

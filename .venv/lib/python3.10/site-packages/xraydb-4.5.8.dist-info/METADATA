@@ -1,0 +1,49 @@
+Metadata-Version: 2.4
+Name: xraydb
+Version: 4.5.8
+Summary: calculations with XrayDB: reference data for X-ray interactions with matter
+Author-email: Matthew Newville <matt.newville@gmail.com>
+License-Expression: MIT
+Project-URL: Homepage,  https://github.com/xraypy/XrayDB
+Project-URL: Documentation, https://xraypy.github.io/XrayDB/
+Project-URL: Tracker, https://github.com/xraypy/XrayDB/issues
+Keywords: X-ray,Physics
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy>=1.19
+Requires-Dist: scipy>=1.6
+Requires-Dist: sqlalchemy>=2.0.1
+Requires-Dist: platformdirs
+Provides-Extra: dev
+Requires-Dist: build; extra == "dev"
+Requires-Dist: twine; extra == "dev"
+Provides-Extra: doc
+Requires-Dist: Sphinx; extra == "doc"
+Provides-Extra: test
+Requires-Dist: pytest; extra == "test"
+Requires-Dist: pytest-cov; extra == "test"
+Requires-Dist: coverage; extra == "test"
+Provides-Extra: all
+Requires-Dist: xraydb[dev,doc,test]; extra == "all"
+Dynamic: license-file
+
+## XrayDB Python module
+
+Python interface to XrayDB: X-ray Reference Data for the Elements
+
+To install, use
+```
+pip install xraydb
+```
+
+License: MIT

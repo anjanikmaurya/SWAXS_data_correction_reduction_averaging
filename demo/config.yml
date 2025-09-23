@@ -1,10 +1,13 @@
 ---
-data_directory: "./"
-# Poni directory should be within data directory
-poni_directory: "poni"
+# NOTE: If you use relative paths will be relative to the directory in the terminal where you run the code from
+# To avoid this confusion, absolute paths are generally recommended
+data_directory: "new_demo/2D"
+poni_directory: "new_demo/poni"
+# Specify PONI files and mask files within poni directory above. Do not give an absolute path.
 poni_files:
   saxs: "atT_SAXS.poni"
   waxs: "atT_WAXS.poni"
+# Mask files are assumed to be in poni directory
 # Null if you do not want to use mask correction
 mask_files:
   saxs: "RT_SAXS_mask_03.edf"
@@ -29,14 +32,16 @@ mode: "SWAXS" # Options: "SAXS", "WAXS", or "SWAXS" (both SAXS and WAXS)
 metadata_format: "csv" # Options: "csv" or "pdi"
 # If thickness is specified, use it. If null, compute it
 thickness: null
-# Below functions are used in place of existing functions.
-# IMPORTANT: Make sure to specify function name and add function code in utils.py
-# IMPORTANT: follow input and output in exactly the same way as noted below
 
-# Impelement if not reading .raw
+# IMPORTANT: 1-5 and raw is the only supported combination currently
 # INPUT: Raw data file path, OUTPUT: int32 reshaped dataframe of processed data
 beamline: ["1-5", "raw"]
 
+# Below functions are used in place of existing functions.
+# IMPORTANT: Make sure to specify function name and add function code in utils.py
+# IMPORTANT: follow input and output in exactly the same way as noted below
 # Provide a different reading metadata function if not reading CSV or PDI
 # INPUT: raw data file path. Output: Tuple (i0, bstop, csv_dir). 
 read_metadata_function: null
+
+
