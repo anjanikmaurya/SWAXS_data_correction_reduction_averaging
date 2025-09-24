@@ -37,7 +37,7 @@ i0_air: 0.0
 bstop_air: 0.0
 mode: "SWAXS" # Options: "SAXS", "WAXS", or "SWAXS" (both SAXS and WAXS)
 metadata_format: "csv" # Options: "csv" or "pdi"
-# If thickness is specified, use it. If null, compute it
+# Thickness in meters. If null, compute it
 thickness: null
 
 # IMPORTANT: 1-5 and raw is the only supported combination currently
