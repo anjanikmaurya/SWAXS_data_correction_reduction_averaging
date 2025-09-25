@@ -42,7 +42,9 @@ thickness: null
 
 # IMPORTANT: 1-5 and raw is the only supported combination currently
 # INPUT: Raw data file path, OUTPUT: int32 reshaped dataframe of processed data
-beamline: ["1-5", "raw"]
+beamline: 
+  type: "1-5" 
+  data_format: "raw"
 
 # Below functions are used in place of existing functions.
 # IMPORTANT: Make sure to specify function name and add function code in utils.py

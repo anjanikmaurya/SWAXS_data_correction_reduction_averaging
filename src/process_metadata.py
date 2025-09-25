@@ -5,7 +5,7 @@ import pandas as pd
 
 def find_row_number_to_read(raw_file_path: Path):
     """
-    Finds the correct row to read metadata from for any given file.
+    Finds the correct row to read metadata from for any given csv file.
     """
     doc_number_regex = r"_(\d\d\d\d)\."
     capture = re.search(doc_number_regex, str(raw_file_path))
@@ -74,10 +74,9 @@ def process_pdi_full(raw_file_path: Path, detector_type: str):
     counters, motors, extras = get_meta_from_pdi(pdi_file_path)
     if counters is None:
         raise RuntimeError(f"Error Parsing PDI File: {pdi_file_path} -- counters not found")
-    return counters['i0'], counters['bstop'], pdi_file_path
+    return counters 
         
 def get_meta_from_pdi(pdi_file: str):
-    # TODO: Fix this function
     """Get motor and counter names and values from PDI file
     Function returns empty dictionary for counters if it cannot process successfully
     """

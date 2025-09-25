@@ -31,7 +31,6 @@ When completing the other logic, I should probably add it to another file
 """
 # TODO: Move reductions.log to poni directory
 # TODO: Handle outer directory not being a 2D/ directory, but different name. Assume SAXS and WAXS are the same
-import glob
 import numpy as np
 import yaml
 import fabio
@@ -45,7 +44,6 @@ import argparse
 
 import process_metadata
 import read_raw_file
-import os
 
 # Logging will be configured after loading config in Experiment.__init__
 logger = logging.getLogger('swaxs_pipeline')
@@ -72,6 +70,7 @@ class Experiment:
     bstop_air: float
     mode: str
     metadata_format: str
+    beamline: Dict[str, str]
     
     poni_path: Path # Path to poni directory
     _log_pending: bool # Specifies if the first-run log is currently pending
@@ -118,6 +117,10 @@ class Experiment:
                 logger.info(f"{key}: {value}")
             else:
                 logger.info(f"{key}: {value}")
+        if self.beamline["type"] != "1-5":
+            raise RuntimeError("Only bemline type 1-5 is currently supported")
+        # Add a dot to give the full extension
+        self.beamline["data_format"] = "." + self.beamline["data_format"]
         self.poni_directory = Path(self.poni_directory)
         # Make mode upper-case (SAXS, SWAXS, WAXS) for case-insensitive string comparison
         self.mode = self.mode.upper()
@@ -140,7 +143,7 @@ class Experiment:
         """Setup computed directory paths."""
         if not self.data_directory.exists():
             raise RuntimeError(f"Data Directory Not Found: {self.data_directory}")
-        if not self.poni_directory:
+        if not self.poni_directory.exists():
             raise RuntimeError(f"PONI Directory not found: ")
 
         self.output_directory_1d = self.data_directory.parent / "1D"
@@ -148,6 +151,34 @@ class Experiment:
         
         self.saxs_subdir = "SAXS" 
         self.waxs_subdir = "WAXS"
+        
+    def _create_output_directory(self, detector_type: str) -> Path:
+        """
+        Create output directory structure with SAXS/Reduction or WAXS/Reduction subdirectories.
+
+        Parameters
+        ----------
+        detector_type : str
+            Type of detector ('SAXS' or 'WAXS')
+
+        Returns
+        -------
+        Path
+            Output directory path
+        """
+        # Log function call for first runs only
+        if self._log_pending:
+            logger.info(f"Called create_output_directory() for {detector_type} detector")
+            
+        output_dir = self.output_directory_1d / detector_type.upper() / "Reduction"
+        output_dir.mkdir(parents=True, exist_ok=True)
+    
+        # Log output directory for first runs only
+        if self._log_pending:
+            logger.info(f"  Output directory: {output_dir}")
+            
+        return output_dir
+
     
     def _load_saxs_integrator(self):
         """Load PyFAI integrator and mask for SAXS detector."""
@@ -206,12 +237,12 @@ class Experiment:
     def calculate_sld_mu_thickness(self, transmission: float) -> Dict[str, float]:
         """
         Calculate material properties from transmission using experiment parameters.
-        
+
         Parameters
         ----------
         transmission : float
             Measured transmission value
-            
+
         Returns
         -------
         Dict[str, float]
@@ -243,39 +274,23 @@ class Experiment:
             "thickness_m": thickness
         }
 
-    def create_output_directory(self, raw_file_path: Path, detector_type: str) -> Path:
+    def get_corrections_full(self, raw_file_path: Path, metadata_dict) -> Dict[str, float]:
         """
-        TODO: Move this to the other creation directory
-        Create output directory structure with SAXS/Reduction or WAXS/Reduction subdirectories.
-        
+        Process metadata and compute correction factors for data normalization.
+
         Parameters
         ----------
-        raw_file_path : str
+        raw_file_path : Path
             Path to the raw file being processed
-        detector_type : str
-            Type of detector ('SAXS' or 'WAXS')
-            
+        metadata_dict : dict
+            Dictionary containing metadata with i0 and bstop values
+
         Returns
         -------
-        str
-            Output directory path
+        Dict[str, float]
+            Dictionary containing correction factors including i0_corrected, bstop_corrected,
+            transmission_factor, transmission_ratio, thickness, and normalization_factor
         """
-        # Log function call for first runs only
-        if self._log_pending:
-            logger.info(f"Called create_output_directory() for {detector_type} detector")
-            
-        output_dir = self.output_directory_1d / detector_type.upper() / "Reduction"
-        output_dir.mkdir(parents=True, exist_ok=True)
-    
-        # Log output directory for first runs only
-        if self._log_pending:
-            logger.info(f"  Output directory: {output_dir}")
-            
-        return output_dir
-
-
-    def get_corrections_full(self, raw_file_path: Path, metadata_dict, detector_type: str):
-        """Processed metadata file and computes correction factors"""
         # Log function call for first runs only
         if self._log_pending:
             logger.info(f"Called get_corrections_full() with file path: {raw_file_path}")
@@ -327,59 +342,21 @@ class Experiment:
             'transmission_factor': transmission_factor_raw,
             'transmission_ratio': transmission_ratio,
             'thickness': thickness,
-            'normalization_factor': normalization_factor,
-            'metadata_dict': metadata_dict
+            'normalization_factor': normalization_factor
         }
-    def read_raw_detector_15_image(self, raw_file_path: Path, detector_type: str) -> np.ndarray:
-        """
-        Read raw detector file and return detector image array.
-        
-        Parameters
-        ----------
-        raw_file_path Path to the .raw detector file
-        detector_type : Type of detector ('SAXS' or 'WAXS')
-            
-        Returns
-        -------
-        np.ndarray
-            Detector image array with proper shape
-        """
-        # Log function call for first runs only
-        if self._log_pending:
-            logger.info(f"Called read_raw_detector_15_image() for {detector_type} detector")
-        
-        if detector_type.upper() == 'SAXS':
-            shape = tuple(self.detector_shapes['saxs'])
-        elif detector_type.upper() == 'WAXS':
-            shape = tuple(self.detector_shapes['waxs'])
-
-        data = np.fromfile(str(raw_file_path), dtype=np.int32).reshape(shape)
-
-        
-        if not raw_file_path.exists():
-            raise FileNotFoundError(f"Raw detector file not found: {raw_file_path}")
-        
-        data = np.fromfile(str(raw_file_path), dtype=np.int32).reshape(shape)
-        
-        # Log data information for first runs only
-        if self._log_pending:
-            logger.info(f"  Raw data loaded: shape {data.shape}, dtype {data.dtype}")
-            logger.info(f"  Data range: min={data.min()}, max={data.max()}, mean={data.mean():.2f}")
-        
-        return data
-    def process_saxs_file(self, raw_file_path: Path):
+    def process_saxs_file(self, raw_file_path: Path) -> Dict:
         """
         Process a single SAXS .raw file with corrections and 1D integration.
-        
+
         Parameters
         ----------
-        raw_file_path
+        raw_file_path : Path
             Path to the SAXS .raw file
-            
+
         Returns
         -------
         Dict
-            Dictionary containing plotting data: q, intensity, error, filename, corrections
+            Dictionary containing q, intensity, error, filename, corrections, and raw_file_path
         """
                 
         # Log detailed information for first file only
@@ -397,12 +374,11 @@ class Experiment:
         if self.metadata_format == "csv":
             metadata_dict = process_metadata.process_csv_metadata(raw_file_path)
         elif self.metadata_format == "pdi":
-            # TODO
             metadata_dict = process_metadata.process_pdi_full(raw_file_path, 'SAXS')
         else:
-            raise RuntimeError(f"Metadata format {self.metadata_format} not supported. Needs to be csv.")
+            raise RuntimeError(f"Metadata format {self.metadata_format} not supported. Needs to be csv or pdi.")
         
-        corrections = self.get_corrections_full(raw_file_path, metadata_dict, "SAXS")
+        corrections = self.get_corrections_full(raw_file_path, metadata_dict)
         
         # Log corrections for first file only
         if self._log_pending:
@@ -410,8 +386,8 @@ class Experiment:
         
         # Create output directory and filename
         # TODO: Make output directory only once.
-        output_dir = self.create_output_directory(raw_file_path, 'SAXS')
-        output_filename = raw_file_path.name.replace('.raw', '.dat')
+        output_dir = self._create_output_directory('SAXS')
+        output_filename = raw_file_path.name.replace(self.beamline['data_format'], '.dat')
         output_filename = output_filename.removeprefix("sone_")
 
         output_path = output_dir / output_filename
@@ -427,7 +403,7 @@ class Experiment:
             filename=str(output_path)
         )
                 
-        add_metadata_to_dat(dat_file_path= output_path, metadata_dict=corrections['metadata_dict'])
+        add_metadata_to_dat(dat_file_path= output_path, metadata_dict=metadata_dict)
         # Return plotting data
         return {
             'q': q,
@@ -437,19 +413,19 @@ class Experiment:
             'corrections': corrections,
             'raw_file_path': raw_file_path
         }
-    def process_waxs_file(self, raw_file_path: Path):
+    def process_waxs_file(self, raw_file_path: Path) -> Dict:
         """
         Process a single WAXS .raw file with corrections and 1D integration.
-        
+
         Parameters
         ----------
-        raw_file_path : str
+        raw_file_path : Path
             Path to the WAXS .raw file
-            
+
         Returns
         -------
         Dict
-            Dictionary containing plotting data: q, intensity, error, filename, corrections
+            Dictionary containing q, intensity, error, filename, corrections, and raw_file_path
         """        
         
         # Log detailed information for first file only
@@ -464,16 +440,15 @@ class Experiment:
             logger.info(f"Detector shape: {self.detector_shapes['waxs']}")
             logger.info("")
         
-        detector_data = self.read_raw_detector_15_image(raw_file_path, 'WAXS')
+        detector_data = read_raw_file.read_raw_detector_15_image(raw_file_path, self.detector_shapes['waxs'], self._log_pending)
         if self.metadata_format == "csv":
             metadata_dict = process_metadata.process_csv_metadata(raw_file_path)
         elif self.metadata_format == "pdi":
-            # TODO
             metadata_dict = process_metadata.process_pdi_full(raw_file_path, 'WAXS')
         else:
             raise RuntimeError(f"Metadata format {self.metadata_format} not supported. Needs to be csv.")
         
-        corrections = self.get_corrections_full(raw_file_path, metadata_dict, "WAXS")
+        corrections = self.get_corrections_full(raw_file_path, metadata_dict)
 
         # Log corrections for first file only
         if self._log_pending:
@@ -481,10 +456,10 @@ class Experiment:
             self._log_pending = False
 
         # Create output directory and filename
-        output_filename = raw_file_path.name.replace('.raw', '.dat')
+        output_filename = raw_file_path.name.replace(self.beamline['data_format'], '.dat')
         output_filename = output_filename.removeprefix("b_tassone_")
         
-        output_dir = self.create_output_directory(raw_file_path, 'WAXS')
+        output_dir = self._create_output_directory('WAXS')
         output_path = output_dir / output_filename
         output_path = output_path.with_stem(f"{output_path.stem}_WAXS")
         
@@ -498,7 +473,7 @@ class Experiment:
             normalization_factor=corrections['normalization_factor'],
             filename=str(output_path)
         )
-        add_metadata_to_dat(dat_file_path= output_path, metadata_dict=corrections['metadata_dict'])
+        add_metadata_to_dat(dat_file_path= output_path, metadata_dict=metadata_dict)
 
         # Return plotting data
         return {
@@ -525,21 +500,20 @@ def find_all_raw_files(experiment: Experiment, data_directory_path: Path) -> Tup
     Tuple[List[Path], List[Path]]
         Lists of SAXS and WAXS .raw file paths
     """
+    data_format = experiment.beamline["data_format"]
     if (experiment.mode != "WAXS"):
-        saxs_pattern = str(data_directory_path / "**/SAXS/**/*.raw")
-        saxs_files = [Path(f) for f in glob.glob(saxs_pattern, recursive=True) 
-                    if not f.endswith('.raw.pdi')]
+        saxs_files = [f for f in data_directory_path.glob(f"**/SAXS/**/*{data_format}")
+                     if not str(f).endswith('.raw.pdi')]
     else:
         # Don't include SAXS files in just WAXS
         saxs_files = []
-    
+
     if (experiment.mode == "SAXS"):
         # Don't include WAXS files in just SAXS
         waxs_files = []
     else:
-        waxs_pattern = str(data_directory_path / "**/WAXS/**/*.raw")
-        waxs_files = [Path(f) for f in glob.glob(waxs_pattern, recursive=True)
-                    if not f.endswith('.raw.pdi')]
+        waxs_files = [f for f in data_directory_path.glob(f"**/WAXS/**/*{data_format}")
+                     if not str(f).endswith('.raw.pdi')]
 
         
     return sorted(saxs_files), sorted(waxs_files)
@@ -576,7 +550,6 @@ def full_correction_integration(config_file_path = 'config.yml', plotting=False)
     print(f"Energy: {experiment.energy_keV} keV, Density: {experiment.density_g_cm3} g/cm³")
     print()
     
-    # Find all .raw files to process
     logger.info(f"Calling find_all_raw_files(experiment, {experiment.data_directory})")
     saxs_files, waxs_files = find_all_raw_files(experiment, experiment.data_directory)
     logger.info("")

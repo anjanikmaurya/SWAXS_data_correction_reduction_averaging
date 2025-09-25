@@ -214,7 +214,7 @@ def main():
     
     # Convert to Path objects
     source_dir = Path(args.source)
-    target_dir = Path(args.target)
+    target_dir = Path(args.target) / '2D'
     
     # Validate source directory
     if not source_dir.exists():

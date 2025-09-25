@@ -2,6 +2,10 @@
 
 This is a user-guide to use this repository, with detailed steps about how to use it. For a developer-guide, with details about adding code, use developer_guide.md. If you are using VSCode, using Cmd+Shift+V (or Ctrl+Shift+V on Windows) to preview the file in proper markdown.
 
+## Purpose
+This directory can run the corrections and reductions together. After that, it also provides file averaging functionality. This is likely to speed up these steps considerably and users will quickly be able to move on to the analysis for supported data.
+
+## Instructions
 ## 1. Set up code
 
 ### 1a. Clone Repository
@@ -33,35 +37,72 @@ pip install -r requirements.txt
 
 ## 2. Run Demo Example
 
-Basic demo example configured in demo/, with a built in config.yml file in this directory working.
+Simple demo example configured in demo/ directory, with a built in config.yml file in this directory working. You can use these steps as guidance for what to do with your real experiment
 
 ### 2a. Look through demo structure
-Just see the proper folder structure in demo/2D. Also, look through demo/config.yml file to see a configuration file. I recommend
-
+- Look at the proper folder structure in demo/2D
+- Look through demo/config.yml file to see a configuration file. 
 ### 2b. Run Demo For Correction and Reduction
-To use the following script, run the following demo code.
+The follow code executes the script and performs corrections
 ```bash
 python src/main_correction_reduction_v1.py demo/config.yml
 ```
-src/main_correction_reduction_v1.py is the primary analysis script, which corrects and reduces data.
+src/main_correction_reduction_v1.py is the primary analysis script, which corrects and reduces data.  
 demo/config.yml is a YML configuration file for the demo structure
 
-### 2c. Look through corrections
-Now, you should see a 1D/Reductions get created in the demo directory along with a logging file of the logs of the changes. Look through these files to understand the corrections format
+### 2c. Look through corrections new files
+You should see two new items created:
+- Now, you should see a 1D directory get created in the demo directory.
+- You should also see a logging file of the logs of the changes.
+
 
 ### 2d. Run Averaging Demo
-Finally, run the demo with averaging. Use the src/files_averaging.ipynb notebook to perform the averaging of thi sexample
+Finally, run the demo with averaging. Use the src/files_averaging.ipynb notebook to perform the averaging of this example. 
 
-## Running a New Data Correction
-
-After performing the data corrections
-## Reformatting Directory Structure
-If you would like to migrate an old directory structure into a new directory structure, then type:
+## 3. Running a New Data Correction
+Follow similar process from the demo, but make a copy of the config.yml file and set it up on your own to run a new data correction. You will not need to edit the code unless you would like to enable a new feature. After performing this, run
 ```bash
-python bin/copy_data_structure.py
+python src/main_correction_reduction_v1.py demo/config.yml
 ```
 
-## Notes About File Information
-If you have an existing directory, then running this file will add
+## Recommended File Structure Setup
+File names may be different, but this is the recommended directory structure setup (and is in demo).
+.
+├── 2D
+│   ├── Hor_scan_Run4_RampT20_ctr0_scan1.csv
+│   ├── SAXS
+│   │   ├── sone_Hor_scan_Run4_RampT20_ctr0_scan1_0000.raw
+│   │   ├── sone_Hor_scan_Run4_RampT20_ctr0_scan1_0000.raw.pdi
+│   └── WAXS
+│       ├── b_tassone_Hor_scan_Run4_RampT20_ctr0_scan1_0000.raw
+│       ├── b_tassone_Hor_scan_Run4_RampT20_ctr0_scan1_0000.raw.pdi
+└── poni
+    ├── atT_SAXS.poni
+    ├── atT_WAXS.poni
+    ├── RT_SAXS_mask_03.edf
+    └── RT_WAXS_mask.edf
 
-If you have an existing analyzed data using the same script in the same 1D directory, running this code will overwrite your existing files. 
+## Reformatting Directory Structure to correct one
+Old directory structure. This structure is **not supported**, but can be transformed into the correct data structure using copy_data_structure.py. This is a simple example for demonstration.
+.
+├── poni
+├── Run5
+│   ├── Hor_scan_Run5_RampT20_ctr0_scan1.csv
+│   └── SAXS
+│       └── sone_Hor_scan_Run5_RampT20_ctr0_scan1_0000.raw
+├── Run6
+│   ├── Hor_scan_Run6_RampT20_ctr0_scan1.csv
+│   └── SAXS
+│       └── sone_Hor_scan_Run6_RampT20_ctr0_scan1_0000.raw
+└── Run7
+    ├── Hor_scan_Run7_RampT20_ctr0_scan1.csv
+    └── SAXS
+        └── sone_Hor_scan_Run7_RampT20_ctr0_scan1_0000.raw
+
+Note that this is segregated by run numbers, unlike the correct data structure. Use the following code to get it into the right structure.
+```bash
+python bin/copy_data_structure.py --source source_folder --target target_folder
+```
+Here, source_folder is the folder storing data in the old format and target folder is the new folder (now empty) which will store the data in the new format.
+
+If you have other data organization structures, this script will not be able to convert it. You can create a program to change the structure, perhaps with LLM assistance.

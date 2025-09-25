@@ -4,7 +4,7 @@ import numpy as np
 
 
 # Global constant for metadata section identifier
-METADATA_SECTION_IDENTIFIER = "# METADATA INFORMATION (YML FORMAT)"
+METADATA_SECTION_PREFIX = "# METADATA INFORMATION"
 def read_dat_data_metadata(file_path: Path) -> tuple:
     """
     Reads a .dat file and extracts header comments, data, and metadata
@@ -21,7 +21,7 @@ def read_dat_data_metadata(file_path: Path) -> tuple:
                 line_stripped = line.strip()
 
                 # Check if we're entering the metadata section
-                if line_stripped == METADATA_SECTION_IDENTIFIER:
+                if line_stripped.startswith(METADATA_SECTION_PREFIX):
                     in_metadata_section = True
                     continue
 
