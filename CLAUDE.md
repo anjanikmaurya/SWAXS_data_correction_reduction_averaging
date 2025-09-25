@@ -15,17 +15,23 @@ Also, you may find some diagnostic issues with the pt library on vscode, but the
 SWAXS_data_reduction_correction_Analysis/
 ├── src/                                                     # Main processing modules
 │   ├── main_correction_reduction_v1.py                     # Core data processing pipeline
-│   ├── process_metadata.py                                 # CSV/metadata processing utilities
+│   ├── process_metadata.py                                 # CSV/PDI metadata processing utilities
 │   ├── files_averaging.ipynb                              # Multi-file averaging functionality
+│   ├── read_raw_file.py                                    # Raw file reading utilities
 │   └── utils/                                              # Utility modules
 │       └── read_dat_metadata.py                           # .dat file parsing utilities
 ├── bin/                                                     # Command-line utilities and scripts
 │   ├── compare_dat_files.py                               # Validation tool for comparing .dat outputs
 │   └── copy_data_structure.py                             # Data organization utilities
-├── config.yml                                              # Configuration file for processing pipeline
-├── pyproject.toml                                          # Project dependencies
-├── run5_test/                                               # Test dataset for validation
-└── [legacy notebooks will be moved/archived]               # Step1-3 notebooks (transitioning out)
+├── demo/                                                    # Demo dataset for validation and testing
+│   ├── 2D/                                                 # Input raw data and metadata
+│   ├── 1D/                                                 # Output processed data with Reduction/Averaged subdirs
+│   ├── poni/                                               # Calibration and mask files
+│   └── config.yml                                          # Demo configuration file
+├── legacy_notebooks/                                       # Legacy Step1-3 notebooks (archived)
+├── README.md                                               # User guide and quickstart instructions
+├── developers_guide.md                                     # Developer documentation and API reference
+└── requirements.txt                                        # Project dependencies
 ```
 
 ## Data Correction Pipeline
@@ -44,9 +50,11 @@ The main data processing pipeline has been refactored into a modular Python impl
 - `read_raw_detector_file()`: Raw detector file reading
 
 **Supporting Modules:**
-- `src/process_metadata.py`: CSV/metadata processing utilities
+- `src/process_metadata.py`: CSV/PDI metadata processing utilities
   - `process_csv_metadata()`: Extracts i0, bstop values from experimental CSV files
+  - `process_pdi_full()`: Extracts metadata from PDI files (SSRL beamline format)
   - `find_row_number_to_read()`: Maps raw file indices to CSV metadata rows
+- `src/read_raw_file.py`: Raw detector file reading utilities
 - `src/utils/read_dat_metadata.py`: .dat file parsing utilities
   - `read_dat_data_metadata()`: Parses processed .dat files with embedded metadata
 - `src/files_averaging.ipynb`: Multi-file averaging functionality (work in progress)
@@ -122,8 +130,8 @@ The modular implementation uses a YAML-based configuration system managed by the
 
 ```yaml
 # Example config.yml structure
-data_directory: "run5_test/2D"  # Path to 2D data directory
-poni_directory: "run5_test"     # Directory containing PONI and mask files  
+data_directory: "demo/2D"       # Path to 2D data directory
+poni_directory: "demo/poni"     # Directory containing PONI and mask files
 compound: "C2H4"                # Material formula
 
 detector_shapes:
@@ -136,20 +144,27 @@ poni_files:
 
 mask_files:
   saxs: "RT_SAXS_mask_03.edf"
-  waxs: "RT_WAXS_mask.edf"
+  waxs: null                    # No mask for WAXS in demo
 
 # Simplified experimental parameters (offsets set to 0 based on Step1 analysis)
 energy_keV: 12
 density_g_cm3: 0.92
-i0_offset: 0
-bstop_offset: 0
-i0_air: 21.279793333
-bstop_air: 18.65027
-thickness: null  # Calculated from transmission if not provided
+i0_offset: 0.0
+bstop_offset: 0.0
+i0_air: 0.0
+bstop_air: 0.0
+mode: "SWAXS"                   # Options: "SAXS", "WAXS", or "SWAXS"
+metadata_format: "csv"          # Options: "csv" or "pdi"
+thickness: null                 # Calculated from transmission if not provided
 
 # Integration parameters
 npt_radial: 1000
 error_model: "poisson"
+
+# Beamline configuration
+beamline:
+  type: "1-5"
+  data_format: "raw"
 ```
 
 ### File Structure Requirements
@@ -158,18 +173,25 @@ The modular implementation expects a specific directory structure:
 
 ```
 data_directory/
-├── [experiment_dir]/
-│   ├── SAXS/
-│   │   ├── *.raw  # Raw detector files
-│   │   └── *.csv  # Metadata files (same name as .raw)
-│   └── WAXS/
-│       ├── *.raw  # Raw detector files  
-│       └── *.csv  # Metadata files (same name as .raw)
-└── ...
+├── SAXS/
+│   ├── *.raw      # Raw detector files
+│   └── *.raw.pdi  # PDI metadata files (or *.csv for CSV format)
+├── WAXS/
+│   ├── *.raw      # Raw detector files
+│   └── *.raw.pdi  # PDI metadata files (or *.csv for CSV format)
+└── *.csv          # Experiment-level CSV metadata files (if using CSV format)
 
-Output: 1D/[experiment_dir]/
-├── *.dat  # Processed SAXS/WAXS files (3-column: q, intensity, error)
-└── ...
+Output: 1D/
+├── SAXS/
+│   ├── Reduction/
+│   │   └── *.dat  # Processed SAXS files (3-column: q, intensity, error)
+│   └── Averaged/
+│       └── *.dat  # Averaged SAXS files (if averaging performed)
+└── WAXS/
+    ├── Reduction/
+    │   └── *.dat  # Processed WAXS files
+    └── Averaged/
+        └── *.dat  # Averaged WAXS files (if averaging performed)
 ```
 
 ### Testing and Validation
@@ -244,14 +266,17 @@ The modular implementation requires comprehensive validation:
    **Main Processing Pipeline:**
    ```bash
    # Ensure config.yml is properly configured
-   uv run src/main_correction_reduction_v1.py
+   uv run src/main_correction_reduction_v1.py config.yml
+
+   # For demo example:
+   uv run src/main_correction_reduction_v1.py demo/config.yml
 
    # Validate results (optional)
    uv run bin/compare_dat_files.py file1.dat file2.dat
 
    # Then proceed with background subtraction and analysis
-   jupyter notebook Step2_SWAXS_bkg_subtract_*.ipynb
-   jupyter notebook Step3_*.ipynb
+   jupyter notebook legacy_notebooks/Step2_SWAXS_bkg_subtract_*.ipynb
+   jupyter notebook legacy_notebooks/Step3_*.ipynb
    ```
 
    **Development and Testing:**
@@ -274,7 +299,7 @@ The modular implementation requires comprehensive validation:
 
 2. **Configuration Dependency**: Requires a properly configured `config.yml` file with correct file paths and experimental parameters. Missing or incorrect configuration will cause processing failures.
 
-3. **Data Structure Requirements**: The implementation expects data in `2D/SAXS/` and `2D/WAXS/` subdirectories with corresponding CSV metadata files.
+3. **Data Structure Requirements**: The implementation expects data in `2D/SAXS/` and `2D/WAXS/` subdirectories with corresponding metadata files (CSV or PDI format).
 
 4. **Correction Factor Updates**: Dark current offsets have been revised based on systematic analysis.
 
