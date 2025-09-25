@@ -29,8 +29,8 @@ Logging rules:
 I should first complete the logic and then afterwards shard my directories.
 When completing the other logic, I should probably add it to another file
 """
-# TODO: Move reductions.log to poni directory
-# TODO: Handle outer directory not being a 2D/ directory, but different name. Assume SAXS and WAXS are the same
+
+
 import numpy as np
 import yaml
 import fabio
@@ -385,7 +385,6 @@ class Experiment:
             self._log_pending = False
         
         # Create output directory and filename
-        # TODO: Make output directory only once.
         output_dir = self._create_output_directory('SAXS')
         output_filename = raw_file_path.name.replace(self.beamline['data_format'], '.dat')
         output_filename = output_filename.removeprefix("sone_")
