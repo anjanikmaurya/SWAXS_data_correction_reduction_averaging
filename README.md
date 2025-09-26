@@ -1,4 +1,4 @@
-# SWAXS_data_reduction_correction_Analysis
+# SWAXS_data_reduction_correction_averaging
 
 This is a user guide for using this repository, with detailed steps on how to use it. For a developer guide with details about adding code, see `developers_guide.md`. If you are using VSCode, use Cmd+Shift+V (or Ctrl+Shift+V on Windows) to preview the file in proper markdown.
 
@@ -43,7 +43,7 @@ pip install -r requirements.txt
 
 ## 2. Run Demo Example
 
-Simple demo example configured in the demo/ directory, with a built-in config.yml file in this directory working. You can use these steps as guidance for what to do with your real experiment
+Demo example is for a simultaneous SAXS and WAXS setup from the beamline 1-5 of SSRL. Simple demo example configured in the demo/ directory, with a built-in config.yml file in this directory working. You can use these steps as guidance for what to do with your real experiment
 
 ### 2a. Look through demo structure
 - Look at the proper folder structure in demo/2D. You will need to format your data in this way.
